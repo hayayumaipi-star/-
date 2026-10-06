@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SpeedTask</title>
+<meta name="description" content="習慣は、スワイプで終わらせる。今日の習慣をカードでスワイプして片付ける習慣トラッカー。">
+<meta name="theme-color" content="#F3F5F4">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800;900&display=swap">
+</head>
+<body>
+<!--APP-START-->
+<style>
+/* Layout: one phone-width column — top bar, swipe stage, controls, tab bar. The card stack is the whole product. */
+:root {
+  --bg: #F3F5F4;
+  --surface: #FFFFFF;
+  --ink: #16191B;
+  --muted: #858D93;
+  --line: #E3E7E6;
+  --accent: #22D39A;
+  --accent-ink: #0A7A55;
+  --accent-soft: #DDF7EC;
+  --flame: #FF7A2F;
+  --shadow: 0 14px 34px -16px rgba(22, 25, 27, .45);
+  --font-display: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --font-body: "M PLUS Rounded 1c", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --radius-card: 26px;
+  --peek: 26px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1211; --surface: #191D1C; --ink: #F1F4F3; --muted: #8C9592; --line: #2A302E;
+    --accent: #2EE0A6; --accent-ink: #7DF0C9; --accent-soft: #123528; --flame: #FF8A45;
+    --shadow: 0 14px 34px -14px rgba(0, 0, 0, .8);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1211; --surface: #191D1C; --ink: #F1F4F3; --muted: #8C9592; --line: #2A302E;
+  --accent: #2EE0A6; --accent-ink: #7DF0C9; --accent-soft: #123528; --flame: #FF8A45;
+  --shadow: 0 14px 34px -14px rgba(0, 0, 0, .8);
+  color-scheme: dark;
+}
+
+html { height: 100%; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.6; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+
+#app { height: 100%; max-width: 480px; margin-inline: auto; padding-inline: 16px; display: flex; flex-direction: column; }
+.view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.view.scroll { overflow-y: auto; padding-block: 8px 24px; gap: 18px; }
+
+/* ---------- Home ---------- */
+.topbar { display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; padding-block: 10px 2px; }
+.icon-btn { width: 40px; height: 40px; border-radius: 50%; border: 0; background: transparent; display: grid; place-items: center; color: var(--muted); }
+.icon-btn:disabled { opacity: .35; cursor: default; }
+.icon-btn:not(:disabled):active { background: var(--line); }
+.icon-btn svg { width: 22px; height: 22px; }
+.remain { justify-self: center; display: flex; align-items: baseline; gap: 4px; font-weight: 700; font-size: 14px; }
+.remain b { font-family: var(--font-display); font-weight: 900; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
+.streak { justify-self: end; display: flex; align-items: center; gap: 2px; font-weight: 800; font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.streak svg { width: 18px; height: 18px; color: var(--flame); }
+
+.timer { text-align: center; line-height: 1.1; padding-block: 4px 2px; }
+.timer-label { display: block; font-size: 11px; font-weight: 800; letter-spacing: .08em; color: var(--muted); }
+.timer-num { font-family: var(--font-display); font-weight: 900; font-size: 34px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.timer-num small { font-size: 14px; font-weight: 800; margin-left: 2px; }
+.timer.finished .timer-num { color: var(--accent-ink); }
+
+.stage { flex: 1; min-height: 300px; position: relative; }
+.stack { position: absolute; inset: 6px 0 10px; margin-inline: auto; width: min(100%, 330px); max-height: 480px; margin-block: auto; touch-action: none; }
+
+.card {
+  position: absolute; left: 0; right: 0; bottom: 0; top: calc(var(--peek) * 3);
+  border-radius: var(--radius-card); background: linear-gradient(165deg, var(--ca), var(--cb));
+  color: rgba(14, 16, 18, .9); box-shadow: var(--shadow); padding: 18px 22px 22px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  transform: translateY(calc(var(--i, 0) * var(--peek) * -1)) scale(calc(1 - var(--i, 0) * .035));
+  transform-origin: 50% 0;
+  transition: transform .32s cubic-bezier(.2, .8, .25, 1), opacity .32s, filter .32s;
+  user-select: none; -webkit-user-select: none; will-change: transform;
+}
+.card:not(.top) { filter: saturate(.92); }
+.card.top { cursor: grab; }
+.card.dragging { transition: none; cursor: grabbing; }
+.card.flying { transition: transform .38s cubic-bezier(.25, .7, .3, 1), opacity .38s; opacity: 0; pointer-events: none; }
+.card.enter { opacity: 0; transform: translateY(calc(var(--i, 0) * var(--peek) * -1 - 18px)) scale(.94); }
+.card-label { font-size: 11px; font-weight: 800; letter-spacing: .14em; opacity: .55; }
+.card-name { font-family: var(--font-display); font-weight: 800; font-size: clamp(22px, 6.6vw, 29px); line-height: 1.3; overflow-wrap: anywhere; word-break: auto-phrase; }
+.card-streak { display: flex; align-items: center; gap: 2px; font-size: 13px; font-weight: 800; opacity: .8; margin-top: 4px; }
+.card-streak svg { width: 14px; height: 14px; }
+.stamp { position: absolute; top: 18px; padding: 4px 14px; border-radius: 999px; font-family: var(--font-display); font-weight: 900; font-size: 17px; border: 3px solid #16191B; pointer-events: none; }
+.stamp.ok { right: 16px; background: #2EE0A6; color: #16191B; transform: rotate(10deg); opacity: var(--ok, 0); }
+.stamp.no { left: 16px; background: #FFFFFF; color: #16191B; transform: rotate(-10deg); opacity: var(--no, 0); }
+
+.sticker { position: absolute; z-index: 30; top: 0; right: 4px; padding: 4px 16px; border-radius: 999px; background: #2EE0A6; color: #16191B; border: 3px solid #FFFFFF; box-shadow: 0 6px 16px -6px rgba(0,0,0,.4); font-family: var(--font-display); font-weight: 900; font-size: 17px; transform: rotate(-8deg) scale(0); opacity: 0; pointer-events: none; }
+.sticker.show { animation: pop .9s cubic-bezier(.2, .9, .3, 1.4) both; }
+@keyframes pop { 0% { transform: rotate(-8deg) scale(.3); opacity: 0; } 18% { transform: rotate(-8deg) scale(1.08); opacity: 1; } 30% { transform: rotate(-8deg) scale(1); } 80% { opacity: 1; } 100% { transform: rotate(-8deg) scale(1); opacity: 0; } }
+.toast { position: absolute; z-index: 30; top: 4px; left: 50%; transform: translate(-50%, -6px); background: var(--ink); color: var(--bg); border-radius: 999px; padding: 5px 14px; font-size: 13px; font-weight: 800; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+.done-screen, .empty-screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px; }
+.done-icon { width: 120px; height: 110px; }
+.done-screen.celebrate .done-icon { animation: bounce .7s cubic-bezier(.2, .9, .3, 1.5) both; }
+@keyframes bounce { 0% { transform: scale(.4) rotate(-12deg); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.done-title { font-family: var(--font-display); font-weight: 900; font-size: 30px; letter-spacing: .02em; line-height: 1.1; }
+.done-streak { display: flex; align-items: center; gap: 3px; font-weight: 800; font-size: 14px; color: var(--muted); }
+.done-streak svg { width: 16px; height: 16px; color: var(--flame); }
+.week { display: flex; gap: 6px; margin-block: 6px 4px; }
+.week span { width: 22px; height: 22px; border-radius: 6px; background: var(--line); }
+.week span.on { background: var(--accent); }
+.week span.today { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+.done-pill { background: var(--ink); color: var(--bg); font-family: var(--font-display); font-weight: 900; font-size: 17px; padding: 8px 20px; border-radius: 999px; transform: rotate(-2deg); margin-top: 6px; }
+.text-btn { border: 0; background: transparent; color: var(--muted); font-weight: 700; font-size: 13px; padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px; border-radius: 8px; }
+.text-btn svg { width: 15px; height: 15px; }
+.empty-screen p { margin: 0; color: var(--muted); font-weight: 700; }
+.primary-btn { border: 0; background: var(--accent); color: #0B2E22; font-weight: 800; padding: 10px 20px; border-radius: 999px; }
+
+.controls { display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; padding-block: 4px; }
+.round { width: 52px; height: 52px; border-radius: 50%; border: 0; background: var(--surface); box-shadow: 0 4px 14px -8px rgba(0,0,0,.35); display: grid; place-items: center; }
+.round svg { width: 24px; height: 24px; }
+.round.pass { color: var(--muted); }
+.round.ok { color: var(--accent-ink); }
+.round:disabled { opacity: .35; cursor: default; }
+.round:not(:disabled):active { transform: scale(.94); }
+.dots { display: flex; justify-content: center; gap: 6px; }
+.dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background .2s, width .2s; }
+.dots span.on { background: var(--accent); }
+.dots span.now { width: 18px; border-radius: 4px; background: var(--ink); }
+.motto { margin: 6px 0 10px; text-align: center; background: var(--accent-soft); color: var(--accent-ink); border-radius: 14px; padding: 8px 12px; font-size: 12px; font-weight: 800; line-height: 1.5; }
+
+/* ---------- Tab bar ---------- */
+.tabbar { display: grid; grid-template-columns: repeat(5, 1fr); margin-inline: -16px; padding: 6px 12px 8px; background: var(--surface); border-top: 1px solid var(--line); }
+.tab { border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 10px; font-weight: 800; color: var(--muted); padding-block: 4px; border-radius: 12px; }
+.tab svg { width: 22px; height: 22px; }
+.tab[aria-current="page"] { color: var(--accent-ink); }
+.tab[aria-current="page"] .tab-ico { background: var(--accent-soft); }
+.tab-ico { width: 44px; height: 28px; border-radius: 999px; display: grid; place-items: center; transition: background .2s; }
+
+/* ---------- Sub pages ---------- */
+.page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 10px; }
+.page-head h1 { font-size: 24px; font-weight: 900; }
+.page-head span { color: var(--muted); font-size: 12px; font-weight: 700; }
+.panel { background: var(--surface); border-radius: 18px; padding: 16px; }
+.panel h2 { font-size: 14px; font-weight: 800; margin-bottom: 10px; }
+.sample-note { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--accent-soft); color: var(--accent-ink); border-radius: 14px; padding: 8px 8px 8px 14px; font-size: 12px; font-weight: 800; }
+.sample-note button { border: 0; background: var(--surface); color: var(--ink); border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 800; flex-shrink: 0; }
+
+.cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cal-nav b { font-family: var(--font-display); font-weight: 900; font-size: 18px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+.cal-dow { font-size: 11px; font-weight: 800; color: var(--muted); padding-block: 2px; }
+.cal-dow:first-child { color: #E8476F; }
+.cal-day { aspect-ratio: 1; max-width: 100%; border: 0; border-radius: 10px; background: transparent; font-weight: 800; font-size: 13px; font-variant-numeric: tabular-nums; display: grid; place-items: center; }
+.cal-day.full { background: var(--accent); color: #0B2E22; }
+.cal-day.part { background: var(--accent-soft); color: var(--accent-ink); }
+.cal-day.future { color: var(--muted); opacity: .5; cursor: default; }
+.cal-day.today { box-shadow: inset 0 0 0 2px var(--ink); }
+.cal-day.sel { outline: 3px solid var(--flame); outline-offset: -1px; }
+.legend { display: flex; gap: 14px; justify-content: center; font-size: 11px; font-weight: 700; color: var(--muted); margin-top: 12px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+.day-detail h2 { display: flex; justify-content: space-between; gap: 8px; }
+.day-detail h2 span { color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; }
+.check-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.check-list li { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; min-width: 0; }
+.check-list li.off { color: var(--muted); }
+.check-list .mark { width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0; display: grid; place-items: center; background: var(--line); color: #0B2E22; }
+.check-list li:not(.off) .mark { background: var(--sw); }
+.check-list .mark svg { width: 14px; height: 14px; }
+
+.hist-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.hist-row { display: grid; grid-template-columns: 76px 1fr auto; align-items: center; gap: 12px; padding-block: 11px; border-bottom: 1px solid var(--line); }
+.hist-row:last-child { border-bottom: 0; }
+.hist-date { font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; }
+.hist-date small { display: block; font-size: 11px; color: var(--muted); font-weight: 700; }
+.hist-bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.hist-bar i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.hist-time { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; font-size: 14px; }
+.hist-time small { font-size: 11px; font-weight: 800; margin-left: 1px; }
+.hist-time .sub { display: block; font-size: 11px; color: var(--muted); font-weight: 700; }
+.chip { display: inline-block; font-size: 10px; font-weight: 900; padding: 1px 7px; border-radius: 999px; background: var(--flame); color: #fff; margin-left: 4px; vertical-align: 1px; }
+.empty-note { color: var(--muted); font-weight: 700; font-size: 13px; text-align: center; padding-block: 20px; margin: 0; }
+
+.tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.tile { background: var(--surface); border-radius: 18px; padding: 14px 16px; min-width: 0; }
+.tile-label { font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .04em; }
+.tile-value { font-family: var(--font-display); font-weight: 900; font-size: 30px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.tile-value small { font-size: 13px; font-weight: 800; margin-left: 2px; }
+.chart { position: relative; height: 130px; display: grid; grid-template-columns: repeat(14, 1fr); gap: 5px; align-items: end; padding-top: 6px; }
+.chart::before, .chart::after { content: ""; position: absolute; left: 0; right: 0; border-top: 1px dashed var(--line); }
+.chart::before { top: 6px; }
+.chart::after { top: calc(6px + (100% - 6px - 20px) / 2); }
+.bar { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; min-width: 0; }
+.bar i { width: 100%; max-width: 18px; border-radius: 5px 5px 2px 2px; background: var(--accent-soft); min-height: 3px; }
+.bar.full i { background: var(--accent); }
+.bar.today i { box-shadow: 0 0 0 2px var(--ink); }
+.bar span { font-size: 10px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; height: 16px; }
+.chart-scale { display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+.habit-rows { display: grid; gap: 14px; }
+.habit-row { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; }
+.habit-row .name { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 14px; min-width: 0; }
+.habit-row .name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; background: var(--sw); }
+.habit-row .meta { font-size: 12px; font-weight: 800; color: var(--muted); display: flex; align-items: center; gap: 2px; font-variant-numeric: tabular-nums; }
+.habit-row .meta svg { width: 13px; height: 13px; color: var(--flame); }
+.habit-row .rate { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 40px; gap: 8px; align-items: center; font-size: 12px; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+.habit-row .rate div { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.habit-row .rate i { display: block; height: 100%; background: var(--sw); border-radius: 4px; }
+
+.edit-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.edit-row { display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; align-items: center; }
+.color-btn { width: 30px; height: 30px; border-radius: 10px; border: 0; background: linear-gradient(165deg, var(--ca), var(--cb)); }
+.edit-row input, .add-row input { width: 100%; min-width: 0; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 10px; padding: 8px 10px; font: inherit; font-weight: 700; font-size: 14px; }
+.row-actions { display: flex; gap: 2px; }
+.mini { width: 32px; height: 32px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+.mini svg { width: 16px; height: 16px; }
+.mini:disabled { opacity: .3; cursor: default; }
+.mini.danger.armed { width: auto; padding-inline: 8px; background: #E8476F; color: #fff; }
+.palette { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; padding: 4px 0 6px 42px; }
+.palette button { width: 28px; height: 28px; border-radius: 9px; border: 0; background: linear-gradient(165deg, var(--ca), var(--cb)); }
+.palette button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+.add-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 12px; }
+.add-row button { border: 0; border-radius: 10px; background: var(--accent); color: #0B2E22; font-weight: 800; padding-inline: 16px; }
+.add-row button:disabled { opacity: .4; cursor: default; }
+.settings-actions { display: grid; gap: 8px; }
+.settings-actions button { text-align: left; border: 1px solid var(--line); background: transparent; border-radius: 12px; padding: 11px 14px; font-weight: 800; font-size: 14px; }
+.settings-actions button.armed { background: #E8476F; border-color: #E8476F; color: #fff; }
+.fine { font-size: 12px; color: var(--muted); font-weight: 700; margin: 10px 0 0; }
+
+@media (max-height: 640px) {
+  :root { --peek: 18px; }
+  .timer-num { font-size: 26px; }
+  .motto { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+</style>
+
+<div id="app">
+  <!-- Home -->
+  <main class="view" id="view-home" aria-label="ホーム">
+    <header class="topbar">
+      <button class="icon-btn" id="undoBtn" aria-label="ひとつ戻す" title="ひとつ戻す (Z)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+      </button>
+      <div class="remain" aria-live="polite"><span>あと</span><b id="remainNum">0</b><span>枚</span></div>
+      <div class="streak" title="連続日数"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flame"/></svg><span id="streakNum">0</span></div>
+    </header>
+    <div class="timer" id="timer">
+      <span class="timer-label" id="timerLabel">最初のスワイプで計測スタート</span>
+      <span class="timer-num" id="timerNum">0.00<small>秒</small></span>
+    </div>
+    <section class="stage" id="stage">
+      <div class="stack" id="stack" aria-label="今日のカード"></div>
+      <div class="sticker" id="sticker" aria-hidden="true">やった！</div>
+      <div class="toast" id="toast" role="status"></div>
+      <div class="done-screen" id="doneScreen" hidden>
+        <svg class="done-icon" viewBox="0 0 120 110" aria-hidden="true"><use href="#i-logo"/></svg>
+        <div class="done-title">ALL DONE!</div>
+        <div class="done-streak"><svg viewBox="0 0 24 24"><use href="#i-flame"/></svg><span id="doneStreak">1日 連続</span></div>
+        <div class="week" id="week" aria-label="直近7日"></div>
+        <div class="done-pill" id="donePill">今日が終わった。</div>
+        <button class="text-btn" id="undoDone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>ひとつ戻す</button>
+      </div>
+      <div class="empty-screen" id="emptyScreen" hidden>
+        <p>まだ習慣がありません。</p>
+        <button class="primary-btn" data-go="settings">習慣を追加する</button>
+      </div>
+    </section>
+    <div class="controls" id="controls">
+      <button class="round pass" id="passBtn" aria-label="パス（あとでもう一回）" title="パス (←)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+      <div class="dots" id="dots" aria-hidden="true"></div>
+      <button class="round ok" id="doneBtn" aria-label="やった" title="やった (→)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+      </button>
+    </div>
+    <p class="motto">続けるほど、なりたい自分に近づく。</p>
+  </main>
+
+  <!-- Calendar -->
+  <main class="view scroll" id="view-calendar" aria-label="カレンダー" hidden>
+    <div class="page-head"><h1>カレンダー</h1><span id="calSummary"></span></div>
+    <div class="sample-note" data-sample hidden><span>サンプルの記録を表示しています</span><button data-clear-sample>サンプルを消す</button></div>
+    <section class="panel">
+      <div class="cal-nav">
+        <button class="icon-btn" id="calPrev" aria-label="前の月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg></button>
+        <b id="calTitle"></b>
+        <button class="icon-btn" id="calNext" aria-label="次の月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>全部できた</span><span><i style="background:var(--accent-soft)"></i>一部できた</span><span><i style="background:var(--line)"></i>記録なし</span></div>
+    </section>
+    <section class="panel day-detail" id="dayDetail"></section>
+  </main>
+
+  <!-- History -->
+  <main class="view scroll" id="view-history" aria-label="記録" hidden>
+    <div class="page-head"><h1>記録</h1><span>何秒で今日を終わらせたか</span></div>
+    <div class="sample-note" data-sample hidden><span>サンプルの記録を表示しています</span><button data-clear-sample>サンプルを消す</button></div>
+    <section class="panel"><ul class="hist-list" id="histList"></ul></section>
+  </main>
+
+  <!-- Stats -->
+  <main class="view scroll" id="view-stats" aria-label="分析" hidden>
+    <div class="page-head"><h1>分析</h1><span id="statsRange"></span></div>
+    <div class="sample-note" data-sample hidden><span>サンプルの記録を含みます</span><button data-clear-sample>サンプルを消す</button></div>
+    <div class="tiles" id="tiles"></div>
+    <section class="panel">
+      <h2>直近14日の達成度</h2>
+      <div class="chart-scale"><span>100%</span><span>全部できた日は濃い緑</span></div>
+      <div class="chart" id="chart"></div>
+    </section>
+    <section class="panel">
+      <h2>習慣ごと</h2>
+      <div class="habit-rows" id="habitRows"></div>
+    </section>
+  </main>
+
+  <!-- Settings -->
+  <main class="view scroll" id="view-settings" aria-label="設定" hidden>
+    <div class="page-head"><h1>設定</h1><span id="habitCount"></span></div>
+    <section class="panel">
+      <h2>毎日の習慣</h2>
+      <ul class="edit-list" id="editList"></ul>
+      <form class="add-row" id="addForm" autocomplete="off">
+        <input id="addInput" maxlength="30" placeholder="新しい習慣（例：水を1杯のむ）" aria-label="新しい習慣">
+        <button type="submit" id="addBtn">追加</button>
+      </form>
+      <p class="fine">上から順にカードが積まれます。色をタップすると変えられます。</p>
+    </section>
+    <section class="panel">
+      <h2>データ</h2>
+      <div class="settings-actions">
+        <button id="clearSampleBtn" data-clear-sample hidden>サンプルの記録を消す</button>
+        <button id="resetTodayBtn" data-confirm="今日の記録をリセットする？ もう一度タップ">今日の進み具合をリセット</button>
+        <button id="wipeBtn" data-confirm="本当にすべて消す？ もう一度タップ">すべてのデータを消す</button>
+      </div>
+      <p class="fine">記録はこの端末のブラウザにだけ保存されます。</p>
+    </section>
+  </main>
+
+  <nav class="tabbar" aria-label="メニュー">
+    <button class="tab" data-go="home"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1H15v-6H9v6H4.5a1 1 0 0 1-1-1z"/></svg></span>ホーム</button>
+    <button class="tab" data-go="calendar"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></span>カレンダー</button>
+    <button class="tab" data-go="history"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>記録</button>
+    <button class="tab" data-go="stats"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5.5 19v-6M12 19V6M18.5 19v-9"/></svg></span>分析</button>
+    <button class="tab" data-go="settings"><span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M5.5 18.5l1.8-1.8M16.7 7.3l1.8-1.8"/></svg></span>設定</button>
+  </nav>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-flame" viewBox="0 0 24 24"><path fill="currentColor" d="M12.7 2.2c.5 2.7 2.1 4.4 3.6 6 1.4 1.5 2.5 3.1 2.5 5.4A6.6 6.6 0 0 1 12 20.4a6.6 6.6 0 0 1-6.8-6.6c0-2.4 1-4 2.4-5.3.2 1.7 1 2.8 2.1 3.3-.4-3.7.9-7 3-9.6z"/></symbol>
+  <symbol id="i-logo" viewBox="0 0 120 110">
+    <rect x="16" y="26" width="62" height="70" rx="13" fill="#FF6B95" transform="rotate(-16 47 61)"/>
+    <rect x="24" y="22" width="62" height="70" rx="13" fill="#FFD45C" transform="rotate(-7 55 57)"/>
+    <rect x="34" y="18" width="66" height="72" rx="14" fill="#2EE0A6" stroke="#16191B" stroke-width="4.5"/>
+    <path d="M51 54l11 11 22-23" fill="none" stroke="#16191B" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M99 5l-4 10M112 15l-10 6M115 32h-11" stroke="#F5B524" stroke-width="5" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- constants & helpers ----------
+  const COLORS = {
+    mint:   ['#46E6B2', '#1CC98F'],
+    orange: ['#FFA057', '#F2711F'],
+    pink:   ['#FF6E97', '#E8396D'],
+    purple: ['#C47FFF', '#984BF2'],
+    blue:   ['#5DB4FF', '#2D85F0'],
+    yellow: ['#FFD866', '#F4B21F'],
+    teal:   ['#55DCEB', '#18AFC6'],
+  };
+  const COLOR_KEYS = Object.keys(COLORS);
+  const STORE_KEY = 'speedtask.v1';
+  const DOW = ['日', '月', '火', '水', '木', '金', '土'];
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+  const pad = (n) => String(n).padStart(2, '0');
+  const keyOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parseKey = (k) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+  const addDays = (k, n) => { const d = parseKey(k); d.setDate(d.getDate() + n); return keyOf(d); };
+  const todayKey = () => keyOf(new Date());
+  const uid = () => Math.random().toString(36).slice(2, 10);
+  const clamp01 = (v) => Math.max(0, Math.min(1, v));
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const colorVars = (key) => { const [a, b] = COLORS[key] || COLORS.mint; return `--ca:${a};--cb:${b};--sw:${b}`; };
+  const flameSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flame"/></svg>';
+  const checkSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-check"/></svg>';
+
+  function fmtSecs(s) {
+    if (s == null) return '—';
+    if (s < 60) return `${s.toFixed(2)}<small>秒</small>`;
+    if (s < 3600) return `${Math.floor(s / 60)}<small>分</small>${pad(Math.floor(s % 60))}<small>秒</small>`;
+    return `${Math.floor(s / 3600)}<small>時間</small>${pad(Math.floor((s % 3600) / 60))}<small>分</small>`;
+  }
+  function plainSecs(s) {
+    if (s < 60) return `${Math.max(1, Math.round(s))}秒`;
+    if (s < 3600) return `${Math.floor(s / 60)}分${Math.floor(s % 60)}秒`;
+    return `${Math.floor(s / 3600)}時間${Math.floor((s % 3600) / 60)}分`;
+  }
+
+  // ---------- state ----------
+  function defaultHabits() {
+    return [['Run5km', 'mint'], ['Claudecodeを開く', 'orange'], ['入門問題英文精講をとく', 'pink'], ['Xポストする', 'purple'], ['Leap開く', 'blue']]
+      .map(([name, color]) => ({ id: uid(), name, color }));
+  }
+  function seed() {
+    const habits = defaultHabits();
+    const days = {};
+    const t = todayKey();
+    const all = habits.map((h) => h.id);
+    // Sample history: the last 2 days complete (streak 2), a partial day before that, a few gaps further back.
+    // Marked sample:true so it can be cleared from the app.
+    for (let i = 24; i >= 1; i--) {
+      const k = addDays(t, -i);
+      if (i === 11 || i === 19) continue;                       // no record
+      if (i === 3 || i === 8 || i === 15) {                     // partial
+        days[k] = { done: all.filter((_, j) => (j + i) % 3 !== 0), seconds: null, total: all.length, complete: false, sample: true };
+        continue;
+      }
+      const secs = +(5.4 + ((i * 47) % 61) / 10).toFixed(2);
+      days[k] = { done: all.slice(), seconds: secs, total: all.length, complete: true, sample: true };
+    }
+    return { habits, days, session: null, sample: true };
+  }
+  function load() {
+    try {
+      const s = JSON.parse(localStorage.getItem(STORE_KEY));
+      if (s && Array.isArray(s.habits) && s.days) return s;
+    } catch (e) { /* storage unavailable */ }
+    return null;
+  }
+  function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable */ } }
+
+  let state = load() || seed();
+  const today = () => state.days[state.session.date];
+
+  function ensureSession() {
+    const t = todayKey();
+    if (!state.session || state.session.date !== t) state.session = { date: t, queue: [], history: [], startedAt: null, finishedAt: null };
+    if (!state.days[t]) state.days[t] = { done: [], seconds: null, total: state.habits.length, complete: false };
+    const s = state.session, day = state.days[t];
+    const ids = new Set(state.habits.map((h) => h.id));
+    day.done = day.done.filter((id) => ids.has(id));
+    s.queue = s.queue.filter((id, i, a) => ids.has(id) && !day.done.includes(id) && a.indexOf(id) === i);
+    state.habits.forEach((h) => { if (!day.done.includes(h.id) && !s.queue.includes(h.id)) s.queue.push(h.id); });
+    s.history = s.history.filter((a) => ids.has(a.id));
+    refreshComplete();
+  }
+  function refreshComplete() {
+    const s = state.session, day = today();
+    day.total = state.habits.length;
+    day.complete = state.habits.length > 0 && s.queue.length === 0;
+    if (day.complete && !s.finishedAt) {
+      s.finishedAt = Date.now();
+      if (s.startedAt) day.seconds = +((s.finishedAt - s.startedAt) / 1000).toFixed(2);
+    }
+    if (!day.complete) { s.finishedAt = null; day.seconds = null; }
+  }
+  const habitById = (id) => state.habits.find((h) => h.id === id);
+
+  function overallStreak() {
+    let k = todayKey();
+    if (!state.days[k]?.complete) k = addDays(k, -1);
+    let n = 0;
+    while (state.days[k]?.complete) { n++; k = addDays(k, -1); }
+    return n;
+  }
+  function longestStreak() {
+    const keys = Object.keys(state.days).filter((k) => state.days[k].complete).sort();
+    let best = 0, run = 0, prev = null;
+    keys.forEach((k) => { run = prev && addDays(prev, 1) === k ? run + 1 : 1; best = Math.max(best, run); prev = k; });
+    return best;
+  }
+  function habitStreak(id) {
+    let k = todayKey();
+    if (!state.days[k]?.done.includes(id)) k = addDays(k, -1);
+    let n = 0;
+    while (state.days[k]?.done.includes(id)) { n++; k = addDays(k, -1); }
+    return n;
+  }
+
+  // ---------- actions ----------
+  function act(type, startHint) {
+    const s = state.session;
+    if (!s.queue.length) return;
+    const id = s.queue[0];
+    if (!s.startedAt) s.startedAt = startHint || Date.now();
+    if (type === 'done') { s.queue.shift(); today().done.push(id); }
+    else s.queue.push(s.queue.shift());
+    s.history.push({ type, id });
+    refreshComplete();
+    save();
+  }
+  function undo() {
+    const s = state.session;
+    const a = s.history.pop();
+    if (!a) return;
+    if (a.type === 'done') { today().done = today().done.filter((x) => x !== a.id); s.queue = s.queue.filter((x) => x !== a.id); }
+    else { const i = s.queue.lastIndexOf(a.id); if (i > -1) s.queue.splice(i, 1); }
+    s.queue.unshift(a.id);
+    if (!s.history.length) s.startedAt = null;
+    refreshComplete();
+    save();
+    showToast('ひとつ戻しました');
+    render();
+  }
+
+  // ---------- home: card stack ----------
+  const stack = $('#stack');
+  const cardEls = new Map();
+
+  function makeCard(id) {
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.dataset.id = id;
+    el.innerHTML = '<div class="card-label">TODAY</div><div><div class="card-name"></div><div class="card-streak"></div></div><span class="stamp ok">やった！</span><span class="stamp no">✕ パス</span>';
+    return el;
+  }
+  function fillCard(el, id) {
+    const h = habitById(id);
+    if (!h) return;
+    el.setAttribute('style', el.style.transform ? `${colorVars(h.color)};transform:${el.style.transform}` : colorVars(h.color));
+    el.querySelector('.card-name').textContent = h.name;
+    const n = habitStreak(id);
+    el.querySelector('.card-streak').innerHTML = n ? `${flameSvg}${n}日` : '';
+  }
+
+  function renderHome() {
+    const s = state.session;
+    const visible = s.queue.slice(0, 4);
+    for (const [id, el] of cardEls) if (!visible.includes(id)) { el.remove(); cardEls.delete(id); }
+    visible.forEach((id, i) => {
+      let el = cardEls.get(id);
+      const fresh = !el;
+      if (fresh) { el = makeCard(id); el.classList.add('enter'); stack.appendChild(el); cardEls.set(id, el); }
+      fillCard(el, id);
+      el.style.setProperty('--i', i);
+      el.style.zIndex = String(10 - i);
+      el.classList.toggle('top', i === 0);
+      el.setAttribute('aria-hidden', i === 0 ? 'false' : 'true');
+      if (i === 0) el.setAttribute('aria-label', `${habitById(id)?.name}。右へスワイプでやった、左へスワイプでパス`);
+      if (fresh) requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('enter')));
+    });
+
+    const total = state.habits.length;
+    const done = today().done.length;
+    const allDone = total > 0 && s.queue.length === 0;
+    $('#remainNum').textContent = s.queue.length;
+    $('#streakNum').textContent = overallStreak();
+    $('#undoBtn').disabled = !s.history.length;
+    $('#passBtn').disabled = $('#doneBtn').disabled = !s.queue.length;
+    $('#emptyScreen').hidden = total > 0;
+
+    const dots = $('#dots');
+    dots.innerHTML = '';
+    state.habits.forEach((h) => {
+      const d = document.createElement('span');
+      if (today().done.includes(h.id)) d.className = 'on';
+      else if (s.queue[0] === h.id) d.className = 'now';
+      dots.appendChild(d);
+    });
+
+    const ds = $('#doneScreen');
+    const wasHidden = ds.hidden;
+    ds.hidden = !allDone;
+    if (allDone) {
+      const secs = today().seconds;
+      $('#doneStreak').textContent = `${overallStreak()}日 連続`;
+      $('#donePill').textContent = secs != null ? `${plainSecs(secs)}で、今日が終わった。` : '今日が終わった。';
+      const week = $('#week');
+      week.innerHTML = '';
+      for (let i = 6; i >= 0; i--) {
+        const k = addDays(todayKey(), -i);
+        const sq = document.createElement('span');
+        if (state.days[k]?.complete) sq.classList.add('on');
+        if (i === 0) sq.classList.add('today');
+        sq.title = k;
+        week.appendChild(sq);
+      }
+      if (wasHidden) { ds.classList.remove('celebrate'); void ds.offsetWidth; ds.classList.add('celebrate'); }
+    }
+    $('#undoDone').hidden = !s.history.length;
+    tickTimer();
+  }
+
+  // ---------- timer ----------
+  let rafId = 0;
+  function tickTimer() {
+    cancelAnimationFrame(rafId);
+    const s = state.session;
+    const el = $('#timer');
+    let secs = 0, label;
+    if (s.finishedAt && s.startedAt) { secs = (s.finishedAt - s.startedAt) / 1000; label = `${state.habits.length}つ、全部おわり`; }
+    else if (s.finishedAt) { label = '今日は全部おわり'; secs = null; }
+    else if (s.startedAt) { secs = (Date.now() - s.startedAt) / 1000; label = 'スワイプ中'; }
+    else label = state.habits.length ? `今日の習慣 ${state.habits.length}つ。最初のスワイプで計測スタート` : '習慣を追加しよう';
+    $('#timerLabel').textContent = label;
+    $('#timerNum').innerHTML = secs == null ? '—' : fmtSecs(secs);
+    el.classList.toggle('finished', !!s.finishedAt);
+    if (s.startedAt && !s.finishedAt && currentView === 'home') rafId = requestAnimationFrame(tickTimer);
+  }
+
+  // ---------- feedback ----------
+  let toastTimer = 0;
+  function showToast(text) {
+    const t = $('#toast');
+    t.textContent = text;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 1300);
+  }
+  function popSticker() {
+    const st = $('#sticker');
+    st.classList.remove('show'); void st.offsetWidth; st.classList.add('show');
+  }
+  const buzz = (ms) => { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) { /* no vibration */ } };
+
+  // ---------- swipe ----------
+  function fling(type, el, dy = 0, startHint) {
+    if (!el) return;
+    const dir = type === 'done' ? 1 : -1;
+    cardEls.delete(el.dataset.id);
+    el.classList.remove('dragging', 'top');
+    el.style.setProperty(type === 'done' ? '--ok' : '--no', 1);
+    el.classList.add('flying');
+    el.style.transform = `translate(${dir * (window.innerWidth * 0.9 + 160)}px, ${dy * 0.35 - 30}px) rotate(${dir * 26}deg)`;
+    setTimeout(() => el.remove(), 420);
+    const lastOne = state.session.queue.length === 1;
+    act(type, startHint);
+    if (type === 'done') { popSticker(); buzz(12); }
+    else { showToast(lastOne ? 'パス → 最後の1枚' : 'パス → あとでもう一回'); buzz([6, 40, 6]); }
+    render();
+  }
+
+  let drag = null;
+  stack.addEventListener('pointerdown', (e) => {
+    const el = e.target.closest('.card.top');
+    if (!el || drag || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    drag = { el, x: e.clientX, y: e.clientY, t: performance.now(), wall: Date.now(), dx: 0, dy: 0, lx: e.clientX, lt: performance.now(), v: 0 };
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('dragging');
+  });
+  stack.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const now = performance.now();
+    drag.dx = e.clientX - drag.x;
+    drag.dy = e.clientY - drag.y;
+    if (now - drag.lt > 0) { drag.v = (e.clientX - drag.lx) / (now - drag.lt); drag.lx = e.clientX; drag.lt = now; }
+    const el = drag.el;
+    el.style.transform = `translate(${drag.dx}px, ${drag.dy * 0.35}px) rotate(${drag.dx / 18}deg)`;
+    el.style.setProperty('--ok', clamp01(drag.dx / 90));
+    el.style.setProperty('--no', clamp01(-drag.dx / 90));
+  });
+  function endDrag() {
+    if (!drag) return;
+    const { el, dx, dy, v, wall } = drag;
+    drag = null;
+    const goRight = dx > 100 || (dx > 36 && v > 0.55);
+    const goLeft = dx < -100 || (dx < -36 && v < -0.55);
+    if (goRight || goLeft) { fling(goRight ? 'done' : 'pass', el, dy, wall); return; }
+    el.classList.remove('dragging');
+    el.style.transform = '';
+    el.style.setProperty('--ok', 0);
+    el.style.setProperty('--no', 0);
+  }
+  stack.addEventListener('pointerup', endDrag);
+  stack.addEventListener('pointercancel', endDrag);
+
+  const topCard = () => stack.querySelector('.card.top:not(.flying)');
+  $('#doneBtn').addEventListener('click', () => fling('done', topCard()));
+  $('#passBtn').addEventListener('click', () => fling('pass', topCard()));
+  $('#undoBtn').addEventListener('click', undo);
+  $('#undoDone').addEventListener('click', undo);
+  document.addEventListener('keydown', (e) => {
+    if (currentView !== 'home' || e.target.closest('input')) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); fling('done', topCard()); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); fling('pass', topCard()); }
+    else if (e.key === 'z' || e.key === 'Backspace') { e.preventDefault(); undo(); }
+  });
+
+  // ---------- calendar ----------
+  let calMonth = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })();
+  let calSel = todayKey();
+  function renderCalendar() {
+    const y = calMonth.getFullYear(), m = calMonth.getMonth();
+    $('#calTitle').textContent = `${y}年${m + 1}月`;
+    const grid = $('#calGrid');
+    grid.innerHTML = DOW.map((d) => `<div class="cal-dow">${d}</div>`).join('');
+    const first = new Date(y, m, 1).getDay();
+    const daysIn = new Date(y, m + 1, 0).getDate();
+    const t = todayKey();
+    let full = 0;
+    for (let i = 0; i < first; i++) grid.insertAdjacentHTML('beforeend', '<span></span>');
+    for (let d = 1; d <= daysIn; d++) {
+      const k = `${y}-${pad(m + 1)}-${pad(d)}`;
+      const rec = state.days[k];
+      const cls = ['cal-day'];
+      if (k > t) cls.push('future');
+      else if (rec?.complete) { cls.push('full'); full++; }
+      else if (rec?.done.length) cls.push('part');
+      if (k === t) cls.push('today');
+      if (k === calSel) cls.push('sel');
+      grid.insertAdjacentHTML('beforeend', `<button class="${cls.join(' ')}" data-day="${k}" ${k > t ? 'disabled' : ''} aria-label="${m + 1}月${d}日">${d}</button>`);
+    }
+    $('#calSummary').textContent = `全部できた日 ${full}日`;
+    const nextMonth = new Date(y, m + 1, 1);
+    $('#calNext').disabled = keyOf(nextMonth) > t;
+    renderDayDetail();
+  }
+  function renderDayDetail() {
+    const k = calSel, rec = state.days[k];
+    const d = parseKey(k);
+    const head = `${d.getMonth() + 1}月${d.getDate()}日（${DOW[d.getDay()]}）`;
+    const time = rec?.seconds != null ? plainSecs(rec.seconds) : rec?.complete ? '全部おわり' : '';
+    const items = state.habits.map((h) => {
+      const on = rec?.done.includes(h.id);
+      return `<li class="${on ? '' : 'off'}" style="${colorVars(h.color)}"><span class="mark">${on ? checkSvg : ''}</span><span>${esc(h.name)}</span></li>`;
+    }).join('');
+    $('#dayDetail').innerHTML = `<h2>${head}<span>${time}</span></h2>${state.habits.length ? `<ul class="check-list">${items}</ul>` : '<p class="empty-note">習慣がありません</p>'}`;
+  }
+  $('#calGrid').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-day]');
+    if (!b || b.disabled) return;
+    calSel = b.dataset.day;
+    renderCalendar();
+  });
+  $('#calPrev').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); });
+  $('#calNext').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); });
+
+  // ---------- history ----------
+  function renderHistory() {
+    const keys = Object.keys(state.days).filter((k) => state.days[k].done.length).sort().reverse().slice(0, 60);
+    const best = Math.min(...Object.values(state.days).map((r) => (r.complete && r.seconds != null ? r.seconds : Infinity)));
+    const t = todayKey();
+    $('#histList').innerHTML = keys.length ? keys.map((k) => {
+      const r = state.days[k];
+      const d = parseKey(k);
+      const total = r.total || state.habits.length || 1;
+      const ratio = Math.min(1, r.done.length / total);
+      const label = k === t ? '今日' : k === addDays(t, -1) ? '昨日' : DOW[d.getDay()] + '曜日';
+      const time = r.seconds != null ? fmtSecs(r.seconds) : '—';
+      const sub = r.complete ? (r.seconds === best ? '<span class="chip">ベスト</span>' : '全部おわり') : `${r.done.length}/${total}`;
+      return `<li class="hist-row"><div class="hist-date">${d.getMonth() + 1}/${d.getDate()}<small>${label}</small></div><div class="hist-bar"><i style="width:${ratio * 100}%"></i></div><div class="hist-time">${time}<span class="sub">${sub}</span></div></li>`;
+    }).join('') : '<li class="empty-note">まだ記録がありません。ホームでカードをスワイプしよう。</li>';
+  }
+
+  // ---------- stats ----------
+  function windowKeys(n) {
+    const t = todayKey();
+    const earliest = Object.keys(state.days).sort()[0] || t;
+    const keys = [];
+    for (let i = n - 1; i >= 0; i--) { const k = addDays(t, -i); if (k >= earliest) keys.push(k); }
+    return keys;
+  }
+  function renderStats() {
+    const win = windowKeys(30);
+    const fullDays = win.filter((k) => state.days[k]?.complete).length;
+    const rate = win.length ? Math.round((fullDays / win.length) * 100) : 0;
+    const times = Object.values(state.days).filter((r) => r.complete && r.seconds != null).map((r) => r.seconds);
+    const best = times.length ? Math.min(...times) : null;
+    $('#statsRange').textContent = `直近${win.length}日`;
+    $('#tiles').innerHTML = [
+      ['いまの連続', `${overallStreak()}<small>日</small>`],
+      ['最長の連続', `${longestStreak()}<small>日</small>`],
+      ['全部できた率', `${rate}<small>%</small>`],
+      ['ベストタイム', best != null ? fmtSecs(best) : '—'],
+    ].map(([l, v]) => `<div class="tile"><div class="tile-label">${l}</div><div class="tile-value">${v}</div></div>`).join('');
+
+    const t = todayKey();
+    let bars = '';
+    for (let i = 13; i >= 0; i--) {
+      const k = addDays(t, -i);
+      const r = state.days[k];
+      const total = r?.total || state.habits.length || 1;
+      const ratio = r ? Math.min(1, r.done.length / total) : 0;
+      const cls = ['bar'];
+      if (r?.complete) cls.push('full');
+      if (i === 0) cls.push('today');
+      bars += `<div class="${cls.join(' ')}" title="${k}：${r ? r.done.length : 0}/${total}"><i style="height:calc((100% - 20px) * ${ratio})"></i><span>${parseKey(k).getDate()}</span></div>`;
+    }
+    $('#chart').innerHTML = bars;
+
+    $('#habitRows').innerHTML = state.habits.length ? state.habits.map((h) => {
+      const n = win.filter((k) => state.days[k]?.done.includes(h.id)).length;
+      const pct = win.length ? Math.round((n / win.length) * 100) : 0;
+      const st = habitStreak(h.id);
+      return `<div class="habit-row" style="${colorVars(h.color)}"><div class="name"><i class="sw"></i><span>${esc(h.name)}</span></div><div class="meta">${flameSvg}${st}日</div><div class="rate"><div><i style="width:${pct}%"></i></div><span>${pct}%</span></div></div>`;
+    }).join('') : '<p class="empty-note">習慣がありません</p>';
+  }
+
+  // ---------- settings ----------
+  let openPalette = null;
+  function renderSettings() {
+    $('#habitCount').textContent = `${state.habits.length}つ`;
+    const list = $('#editList');
+    list.innerHTML = state.habits.map((h, i) => `
+      <li class="edit-row" data-id="${h.id}">
+        <button class="color-btn" data-act="color" style="${colorVars(h.color)}" aria-label="${esc(h.name)}の色を変える" aria-expanded="${openPalette === h.id}"></button>
+        <input id="habit-${h.id}" value="${esc(h.name)}" maxlength="30" aria-label="習慣の名前">
+        <div class="row-actions">
+          <button class="mini" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="上へ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></button>
+          <button class="mini" data-act="down" ${i === state.habits.length - 1 ? 'disabled' : ''} aria-label="下へ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+          <button class="mini danger" data-act="del" aria-label="削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 7h14M10 7V4.5h4V7M7 7l1 13h8l1-13"/></svg></button>
+        </div>
+        ${openPalette === h.id ? `<div class="palette">${COLOR_KEYS.map((c) => `<button data-act="pick" data-color="${c}" style="${colorVars(c)}" aria-label="${c}" aria-pressed="${h.color === c}"></button>`).join('')}</div>` : ''}
+      </li>`).join('') || '<li class="empty-note">習慣がありません。下から追加してください。</li>';
+    $('#addBtn').disabled = state.habits.length >= 12;
+    $('#addInput').disabled = state.habits.length >= 12;
+    if (state.habits.length >= 12) $('#addInput').placeholder = '習慣は12個までです';
+  }
+  $('#editList').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-act]');
+    if (!b) return;
+    const id = b.closest('.edit-row').dataset.id;
+    const i = state.habits.findIndex((h) => h.id === id);
+    const act = b.dataset.act;
+    if (act === 'color') openPalette = openPalette === id ? null : id;
+    else if (act === 'pick') { state.habits[i].color = b.dataset.color; openPalette = null; }
+    else if (act === 'up' && i > 0) [state.habits[i - 1], state.habits[i]] = [state.habits[i], state.habits[i - 1]];
+    else if (act === 'down' && i < state.habits.length - 1) [state.habits[i + 1], state.habits[i]] = [state.habits[i], state.habits[i + 1]];
+    else if (act === 'del') {
+      if (!b.classList.contains('armed')) {
+        b.classList.add('armed'); b.textContent = '削除する？';
+        setTimeout(() => { if (b.isConnected) renderSettings(); }, 3000);
+        return;
+      }
+      state.habits.splice(i, 1);
+    }
+    if (act === 'up' || act === 'down') reorderQueue();
+    ensureSession(); save(); renderSettings();
+  });
+  $('#editList').addEventListener('change', (e) => {
+    const input = e.target.closest('input');
+    if (!input) return;
+    const h = habitById(input.closest('.edit-row').dataset.id);
+    const v = input.value.trim();
+    if (v) h.name = v; else input.value = h.name;
+    save();
+  });
+  function reorderQueue() {
+    const order = state.habits.map((h) => h.id);
+    state.session.queue.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  }
+  $('#addForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const v = $('#addInput').value.trim();
+    if (!v || state.habits.length >= 12) return;
+    const used = state.habits.map((h) => h.color);
+    const color = COLOR_KEYS.find((c) => !used.includes(c)) || COLOR_KEYS[state.habits.length % COLOR_KEYS.length];
+    state.habits.push({ id: uid(), name: v, color });
+    $('#addInput').value = '';
+    ensureSession(); save(); renderSettings();
+  });
+  function armOrRun(btn, run) {
+    if (!btn.classList.contains('armed')) {
+      btn.dataset.label = btn.textContent;
+      btn.classList.add('armed'); btn.textContent = btn.dataset.confirm;
+      setTimeout(() => { if (btn.classList.contains('armed')) { btn.classList.remove('armed'); btn.textContent = btn.dataset.label; } }, 3500);
+      return;
+    }
+    btn.classList.remove('armed'); btn.textContent = btn.dataset.label;
+    run();
+  }
+  $('#resetTodayBtn').addEventListener('click', (e) => armOrRun(e.currentTarget, () => {
+    delete state.days[todayKey()];
+    state.session = null;
+    ensureSession(); save(); render();
+    showToast('今日をリセットしました');
+  }));
+  $('#wipeBtn').addEventListener('click', (e) => armOrRun(e.currentTarget, () => {
+    state = { habits: defaultHabits(), days: {}, session: null, sample: false };
+    cardEls.forEach((el) => el.remove()); cardEls.clear();
+    ensureSession(); save(); render();
+  }));
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('[data-clear-sample]')) {
+      Object.keys(state.days).forEach((k) => { if (state.days[k].sample) delete state.days[k]; });
+      state.sample = false;
+      ensureSession(); save(); render();
+    }
+  });
+
+  // ---------- routing ----------
+  const VIEWS = ['home', 'calendar', 'history', 'stats', 'settings'];
+  let currentView = 'home';
+  function go(view) {
+    if (!VIEWS.includes(view)) view = 'home';
+    currentView = view;
+    VIEWS.forEach((v) => { $(`#view-${v}`).hidden = v !== view; });
+    $$('.tab').forEach((t) => { if (t.dataset.go === view) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current'); });
+    if (location.hash.slice(1) !== view) history.replaceState(null, '', view === 'home' ? location.pathname + location.search : `#${view}`);
+    render();
+  }
+  document.addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
+  window.addEventListener('hashchange', () => go(location.hash.slice(1)));
+
+  function render() {
+    $$('[data-sample]').forEach((n) => { n.hidden = !state.sample; });
+    $('#clearSampleBtn').hidden = !state.sample;
+    if (currentView === 'home') renderHome();
+    else if (currentView === 'calendar') renderCalendar();
+    else if (currentView === 'history') renderHistory();
+    else if (currentView === 'stats') renderStats();
+    else if (currentView === 'settings') renderSettings();
+  }
+
+  // Roll over to a new day while the app stays open.
+  function checkDay() {
+    if (state.session?.date !== todayKey()) { cardEls.forEach((el) => el.remove()); cardEls.clear(); ensureSession(); save(); render(); }
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDay(); });
+  setInterval(checkDay, 60000);
+
+  ensureSession();
+  save();
+  go(location.hash.slice(1) || 'home');
+
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http') && document.querySelector('link[rel="manifest"]')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+})();
+</script>
+<!--APP-END-->
+</body>
+</html>
