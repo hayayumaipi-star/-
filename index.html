@@ -119,7 +119,13 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
 .week { display: flex; gap: 6px; margin-block: 6px 4px; }
 .week span { width: 22px; height: 22px; border-radius: 6px; background: var(--line); }
 .week span.on { background: var(--accent); }
+.week span.part { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
 .week span.today { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+.done-result { font-size: 14px; font-weight: 700; color: var(--ink); }
+.done-result b { font-family: var(--font-display); font-weight: 900; font-size: 18px; }
+.done-result span { color: var(--muted); margin-left: 4px; }
+.done-result.perfect b { color: var(--accent-ink); }
+.retry-btn { border: 2px solid var(--ink); background: var(--surface); color: var(--ink); font-weight: 800; font-size: 13px; padding: 6px 16px; border-radius: 999px; }
 .done-pill { background: var(--ink); color: var(--bg); font-family: var(--font-display); font-weight: 900; font-size: 17px; padding: 8px 20px; border-radius: 999px; transform: rotate(-2deg); margin-top: 6px; }
 .text-btn { border: 0; background: transparent; color: var(--muted); font-weight: 700; font-size: 13px; padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px; border-radius: 8px; }
 .text-btn svg { width: 15px; height: 15px; }
@@ -136,6 +142,7 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
 .dots { display: flex; justify-content: center; gap: 6px; }
 .dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background .2s, width .2s; }
 .dots span.on { background: var(--accent); }
+.dots span.skip { background: transparent; box-shadow: inset 0 0 0 2px var(--muted); }
 .dots span.now { width: 18px; border-radius: 4px; background: var(--ink); }
 .motto { margin: 6px 0 10px; text-align: center; background: var(--accent-soft); color: var(--accent-ink); border-radius: 14px; padding: 8px 12px; font-size: 12px; font-weight: 800; line-height: 1.5; }
 
@@ -174,6 +181,8 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
 .check-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .check-list li { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; min-width: 0; }
 .check-list li.off { color: var(--muted); }
+.check-list li em { margin-left: auto; font-style: normal; font-size: 11px; font-weight: 800; color: var(--muted); flex-shrink: 0; }
+.check-list li.off .mark { color: var(--muted); }
 .check-list .mark { width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0; display: grid; place-items: center; background: var(--line); color: #0B2E22; }
 .check-list li:not(.off) .mark { background: var(--sw); }
 .check-list .mark svg { width: 14px; height: 14px; }
@@ -196,6 +205,7 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
 .tile-label { font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .04em; }
 .tile-value { font-family: var(--font-display); font-weight: 900; font-size: 30px; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .tile-value small { font-size: 13px; font-weight: 800; margin-left: 2px; }
+.tile-note { font-size: 11px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
 .chart { position: relative; height: 130px; display: grid; grid-template-columns: repeat(14, 1fr); gap: 5px; align-items: end; padding-top: 6px; }
 .chart::before, .chart::after { content: ""; position: absolute; left: 0; right: 0; border-top: 1px dashed var(--line); }
 .chart::before { top: 6px; }
@@ -269,8 +279,10 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
         <svg class="done-icon" viewBox="0 0 120 110" aria-hidden="true"><use href="#i-logo"/></svg>
         <div class="done-title">ALL DONE!</div>
         <div class="done-streak"><svg viewBox="0 0 24 24"><use href="#i-flame"/></svg><span id="doneStreak">1日 連続</span></div>
+        <div class="done-result" id="doneResult"></div>
         <div class="week" id="week" aria-label="直近7日"></div>
         <div class="done-pill" id="donePill">今日が終わった。</div>
+        <button class="retry-btn" id="retryBtn" hidden>パスした分をもう一回</button>
         <button class="text-btn" id="undoDone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>ひとつ戻す</button>
       </div>
       <div class="empty-screen" id="emptyScreen" hidden>
@@ -279,7 +291,7 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
       </div>
     </section>
     <div class="controls" id="controls">
-      <button class="round pass" id="passBtn" aria-label="パス（あとでもう一回）" title="パス (←)">
+      <button class="round pass" id="passBtn" aria-label="パス（今日はできなかった）" title="パス (←)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
       </button>
       <div class="dots" id="dots" aria-hidden="true"></div>
@@ -320,7 +332,7 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
     <div class="tiles" id="tiles"></div>
     <section class="panel">
       <h2>直近14日の達成度</h2>
-      <div class="chart-scale"><span>100%</span><span>全部できた日は濃い緑</span></div>
+      <div class="chart-scale"><span>100%</span><span id="chartNote"></span></div>
       <div class="chart" id="chart"></div>
     </section>
     <section class="panel">
@@ -403,6 +415,7 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
   const colorVars = (key) => { const [a, b] = COLORS[key] || COLORS.mint; return `--ca:${a};--cb:${b};--sw:${b}`; };
   const flameSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flame"/></svg>';
   const checkSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-check"/></svg>';
+  const crossSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
 
   function fmtSecs(s) {
     if (s == null) return '—';
@@ -426,24 +439,30 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
     const days = {};
     const t = todayKey();
     const all = habits.map((h) => h.id);
-    // Sample history: the last 2 days complete (streak 2), a partial day before that, a few gaps further back.
-    // Marked sample:true so it can be cleared from the app.
+    // Sample history (sample:true, clearable in the app): the last 2 days recorded (streak 2),
+    // a missed day before that, and a mix of perfect and partial days further back.
     for (let i = 24; i >= 1; i--) {
       const k = addDays(t, -i);
-      if (i === 11 || i === 19) continue;                       // no record
-      if (i === 3 || i === 8 || i === 15) {                     // partial
-        days[k] = { done: all.filter((_, j) => (j + i) % 3 !== 0), seconds: null, total: all.length, complete: false, sample: true };
-        continue;
-      }
+      if (i === 3 || i === 11 || i === 19) continue;            // no record
       const secs = +(5.4 + ((i * 47) % 61) / 10).toFixed(2);
-      days[k] = { done: all.slice(), seconds: secs, total: all.length, complete: true, sample: true };
+      const partial = i === 1 || i === 5 || i === 8 || i === 15 || i === 21;
+      const done = partial ? all.filter((_, j) => (j + i) % 4 !== 0) : all.slice();
+      days[k] = { done, skipped: all.filter((id) => !done.includes(id)), seconds: secs, total: all.length, finished: true, complete: !partial, sample: true };
     }
     return { habits, days, session: null, sample: true };
   }
   function load() {
     try {
       const s = JSON.parse(localStorage.getItem(STORE_KEY));
-      if (s && Array.isArray(s.habits) && s.days) return s;
+      if (s && Array.isArray(s.habits) && s.days) {
+        // Older saves had no skipped/finished fields: a day was only ever "finished" when everything was done.
+        Object.values(s.days).forEach((d) => {
+          if (!Array.isArray(d.skipped)) d.skipped = [];
+          if (d.finished === undefined) d.finished = !!d.complete;
+        });
+        if (s.session) s.session.history = (s.session.history || []).filter((a) => a.type === 'done' || a.type === 'pass' || a.type === 'retry');
+        return s;
+      }
     } catch (e) { /* storage unavailable */ }
     return null;
   }
@@ -451,40 +470,49 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
 
   let state = load() || seed();
   const today = () => state.days[state.session.date];
+  const judged = (day, id) => day.done.includes(id) || day.skipped.includes(id);
 
   function ensureSession() {
     const t = todayKey();
     if (!state.session || state.session.date !== t) state.session = { date: t, queue: [], history: [], startedAt: null, finishedAt: null };
-    if (!state.days[t]) state.days[t] = { done: [], seconds: null, total: state.habits.length, complete: false };
+    if (!state.days[t]) state.days[t] = { done: [], skipped: [], seconds: null, total: state.habits.length, finished: false, complete: false };
     const s = state.session, day = state.days[t];
     const ids = new Set(state.habits.map((h) => h.id));
     day.done = day.done.filter((id) => ids.has(id));
-    s.queue = s.queue.filter((id, i, a) => ids.has(id) && !day.done.includes(id) && a.indexOf(id) === i);
-    state.habits.forEach((h) => { if (!day.done.includes(h.id) && !s.queue.includes(h.id)) s.queue.push(h.id); });
-    s.history = s.history.filter((a) => ids.has(a.id));
+    day.skipped = day.skipped.filter((id) => ids.has(id) && !day.done.includes(id));
+    s.queue = s.queue.filter((id, i, a) => ids.has(id) && !judged(day, id) && a.indexOf(id) === i);
+    state.habits.forEach((h) => { if (!judged(day, h.id) && !s.queue.includes(h.id)) s.queue.push(h.id); });
+    s.history = s.history
+      .map((a) => (a.type === 'retry' ? { ...a, ids: a.ids.filter((id) => ids.has(id)) } : a))
+      .filter((a) => (a.type === 'retry' ? a.ids.length : ids.has(a.id)));
     refreshComplete();
   }
+  // finished = every card swiped (done or passed) today; complete = every habit done.
   function refreshComplete() {
     const s = state.session, day = today();
     day.total = state.habits.length;
-    day.complete = state.habits.length > 0 && s.queue.length === 0;
-    if (day.complete && !s.finishedAt) {
+    day.finished = state.habits.length > 0 && s.queue.length === 0;
+    day.complete = day.finished && day.done.length === day.total;
+    if (day.finished && !s.finishedAt) {
       s.finishedAt = Date.now();
-      if (s.startedAt) day.seconds = +((s.finishedAt - s.startedAt) / 1000).toFixed(2);
+      if (day.seconds == null && s.startedAt) day.seconds = +((s.finishedAt - s.startedAt) / 1000).toFixed(2);
     }
-    if (!day.complete) { s.finishedAt = null; day.seconds = null; }
+    if (!day.finished) s.finishedAt = null;
   }
   const habitById = (id) => state.habits.find((h) => h.id === id);
+  const retrying = () => !today().finished && today().seconds != null;
+  // A day counts toward the streak once every card was swiped, even while passed cards are being retried.
+  const recorded = (d) => !!d && (d.finished || d.seconds != null);
 
   function overallStreak() {
     let k = todayKey();
-    if (!state.days[k]?.complete) k = addDays(k, -1);
+    if (!recorded(state.days[k])) k = addDays(k, -1);
     let n = 0;
-    while (state.days[k]?.complete) { n++; k = addDays(k, -1); }
+    while (recorded(state.days[k])) { n++; k = addDays(k, -1); }
     return n;
   }
   function longestStreak() {
-    const keys = Object.keys(state.days).filter((k) => state.days[k].complete).sort();
+    const keys = Object.keys(state.days).filter((k) => recorded(state.days[k])).sort();
     let best = 0, run = 0, prev = null;
     keys.forEach((k) => { run = prev && addDays(prev, 1) === k ? run + 1 : 1; best = Math.max(best, run); prev = k; });
     return best;
@@ -501,22 +529,44 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
   function act(type, startHint) {
     const s = state.session;
     if (!s.queue.length) return;
-    const id = s.queue[0];
+    const id = s.queue.shift();
     if (!s.startedAt) s.startedAt = startHint || Date.now();
-    if (type === 'done') { s.queue.shift(); today().done.push(id); }
-    else s.queue.push(s.queue.shift());
+    if (type === 'done') today().done.push(id);
+    else today().skipped.push(id);
     s.history.push({ type, id });
     refreshComplete();
     save();
   }
+  // Bring today's passed cards back for another try. The day's time stays as first recorded.
+  function retrySkipped() {
+    const s = state.session, day = today();
+    if (!day.skipped.length) return;
+    const ids = day.skipped.slice();
+    day.skipped = [];
+    s.queue.push(...ids);
+    s.history.push({ type: 'retry', ids });
+    refreshComplete();
+    save();
+    showToast(`パスした${ids.length}枚をもう一回`);
+    render();
+  }
   function undo() {
-    const s = state.session;
+    const s = state.session, day = today();
     const a = s.history.pop();
     if (!a) return;
-    if (a.type === 'done') { today().done = today().done.filter((x) => x !== a.id); s.queue = s.queue.filter((x) => x !== a.id); }
-    else { const i = s.queue.lastIndexOf(a.id); if (i > -1) s.queue.splice(i, 1); }
-    s.queue.unshift(a.id);
-    if (!s.history.length) s.startedAt = null;
+    const wasFinished = day.finished;
+    if (a.type === 'retry') {
+      s.queue = s.queue.filter((x) => !a.ids.includes(x));
+      day.skipped.push(...a.ids);
+    } else {
+      day.done = day.done.filter((x) => x !== a.id);
+      day.skipped = day.skipped.filter((x) => x !== a.id);
+      s.queue = s.queue.filter((x) => x !== a.id);
+      s.queue.unshift(a.id);
+      // Undoing the very first finish reopens the timer; after a retry the first time is kept.
+      if (wasFinished && !s.history.some((h) => h.type === 'retry')) day.seconds = null;
+    }
+    if (!s.history.length) { s.startedAt = null; day.seconds = null; }
     refreshComplete();
     save();
     showToast('ひとつ戻しました');
@@ -556,12 +606,12 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
       el.style.zIndex = String(10 - i);
       el.classList.toggle('top', i === 0);
       el.setAttribute('aria-hidden', i === 0 ? 'false' : 'true');
-      if (i === 0) el.setAttribute('aria-label', `${habitById(id)?.name}。右へスワイプでやった、左へスワイプでパス`);
+      if (i === 0) el.setAttribute('aria-label', `${habitById(id)?.name}。右へスワイプでやった、左へスワイプで今日はできなかった`);
       if (fresh) requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('enter')));
     });
 
     const total = state.habits.length;
-    const done = today().done.length;
+    const day = today();
     const allDone = total > 0 && s.queue.length === 0;
     $('#remainNum').textContent = s.queue.length;
     $('#streakNum').textContent = overallStreak();
@@ -573,7 +623,8 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
     dots.innerHTML = '';
     state.habits.forEach((h) => {
       const d = document.createElement('span');
-      if (today().done.includes(h.id)) d.className = 'on';
+      if (day.done.includes(h.id)) d.className = 'on';
+      else if (day.skipped.includes(h.id)) d.className = 'skip';
       else if (s.queue[0] === h.id) d.className = 'now';
       dots.appendChild(d);
     });
@@ -582,17 +633,26 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
     const wasHidden = ds.hidden;
     ds.hidden = !allDone;
     if (allDone) {
-      const secs = today().seconds;
+      const secs = day.seconds;
+      const nDone = day.done.length, nSkip = day.skipped.length;
       $('#doneStreak').textContent = `${overallStreak()}日 連続`;
+      $('#doneResult').innerHTML = nSkip
+        ? `<b>${total}つ中 ${nDone}つ</b> できた<span>・パス ${nSkip}</span>`
+        : `<b>${total}つ 全部</b> できた！`;
+      $('#doneResult').classList.toggle('perfect', !nSkip);
       $('#donePill').textContent = secs != null ? `${plainSecs(secs)}で、今日が終わった。` : '今日が終わった。';
+      $('#retryBtn').hidden = !nSkip;
+      $('#retryBtn').textContent = `パスした${nSkip}枚をもう一回`;
       const week = $('#week');
       week.innerHTML = '';
       for (let i = 6; i >= 0; i--) {
         const k = addDays(todayKey(), -i);
+        const r = state.days[k];
         const sq = document.createElement('span');
-        if (state.days[k]?.complete) sq.classList.add('on');
+        if (r?.complete) sq.classList.add('on');
+        else if (r?.finished) sq.classList.add('part');
         if (i === 0) sq.classList.add('today');
-        sq.title = k;
+        sq.title = r?.finished ? `${k}：${r.done.length}/${r.total || total}` : k;
         week.appendChild(sq);
       }
       if (wasHidden) { ds.classList.remove('celebrate'); void ds.offsetWidth; ds.classList.add('celebrate'); }
@@ -606,16 +666,17 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
   function tickTimer() {
     cancelAnimationFrame(rafId);
     const s = state.session;
+    const day = today();
     const el = $('#timer');
     let secs = 0, label;
-    if (s.finishedAt && s.startedAt) { secs = (s.finishedAt - s.startedAt) / 1000; label = `${state.habits.length}つ、全部おわり`; }
-    else if (s.finishedAt) { label = '今日は全部おわり'; secs = null; }
+    if (day.finished) { secs = day.seconds; label = `${state.habits.length}つ、全部おわり`; }
+    else if (retrying()) { secs = day.seconds; label = 'もう一回中（タイムは最初の記録のまま）'; }
     else if (s.startedAt) { secs = (Date.now() - s.startedAt) / 1000; label = 'スワイプ中'; }
     else label = state.habits.length ? `今日の習慣 ${state.habits.length}つ。最初のスワイプで計測スタート` : '習慣を追加しよう';
     $('#timerLabel').textContent = label;
     $('#timerNum').innerHTML = secs == null ? '—' : fmtSecs(secs);
-    el.classList.toggle('finished', !!s.finishedAt);
-    if (s.startedAt && !s.finishedAt && currentView === 'home') rafId = requestAnimationFrame(tickTimer);
+    el.classList.toggle('finished', day.finished || retrying());
+    if (s.startedAt && !day.finished && !retrying() && currentView === 'home') rafId = requestAnimationFrame(tickTimer);
   }
 
   // ---------- feedback ----------
@@ -643,10 +704,9 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
     el.classList.add('flying');
     el.style.transform = `translate(${dir * (window.innerWidth * 0.9 + 160)}px, ${dy * 0.35 - 30}px) rotate(${dir * 26}deg)`;
     setTimeout(() => el.remove(), 420);
-    const lastOne = state.session.queue.length === 1;
     act(type, startHint);
     if (type === 'done') { popSticker(); buzz(12); }
-    else { showToast(lastOne ? 'パス → 最後の1枚' : 'パス → あとでもう一回'); buzz([6, 40, 6]); }
+    else { showToast('パス → 今日はできなかった'); buzz([6, 40, 6]); }
     render();
   }
 
@@ -689,6 +749,7 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
   $('#passBtn').addEventListener('click', () => fling('pass', topCard()));
   $('#undoBtn').addEventListener('click', undo);
   $('#undoDone').addEventListener('click', undo);
+  $('#retryBtn').addEventListener('click', retrySkipped);
   document.addEventListener('keydown', (e) => {
     if (currentView !== 'home' || e.target.closest('input')) return;
     if (e.key === 'ArrowRight') { e.preventDefault(); fling('done', topCard()); }
@@ -707,20 +768,20 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
     const first = new Date(y, m, 1).getDay();
     const daysIn = new Date(y, m + 1, 0).getDate();
     const t = todayKey();
-    let full = 0;
+    let full = 0, logged = 0;
     for (let i = 0; i < first; i++) grid.insertAdjacentHTML('beforeend', '<span></span>');
     for (let d = 1; d <= daysIn; d++) {
       const k = `${y}-${pad(m + 1)}-${pad(d)}`;
       const rec = state.days[k];
       const cls = ['cal-day'];
       if (k > t) cls.push('future');
-      else if (rec?.complete) { cls.push('full'); full++; }
-      else if (rec?.done.length) cls.push('part');
+      else if (rec?.complete) { cls.push('full'); full++; logged++; }
+      else if (recorded(rec) || rec?.done.length) { cls.push('part'); if (recorded(rec)) logged++; }
       if (k === t) cls.push('today');
       if (k === calSel) cls.push('sel');
       grid.insertAdjacentHTML('beforeend', `<button class="${cls.join(' ')}" data-day="${k}" ${k > t ? 'disabled' : ''} aria-label="${m + 1}月${d}日">${d}</button>`);
     }
-    $('#calSummary').textContent = `全部できた日 ${full}日`;
+    $('#calSummary').textContent = `記録 ${logged}日・全部できた ${full}日`;
     const nextMonth = new Date(y, m + 1, 1);
     $('#calNext').disabled = keyOf(nextMonth) > t;
     renderDayDetail();
@@ -729,10 +790,14 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
     const k = calSel, rec = state.days[k];
     const d = parseKey(k);
     const head = `${d.getMonth() + 1}月${d.getDate()}日（${DOW[d.getDay()]}）`;
-    const time = rec?.seconds != null ? plainSecs(rec.seconds) : rec?.complete ? '全部おわり' : '';
+    const total = rec?.total || state.habits.length;
+    const score = rec && (rec.finished || rec.done.length) ? `${rec.done.length}/${total}` : '記録なし';
+    const time = rec?.seconds != null ? `${score}・${plainSecs(rec.seconds)}` : score;
     const items = state.habits.map((h) => {
       const on = rec?.done.includes(h.id);
-      return `<li class="${on ? '' : 'off'}" style="${colorVars(h.color)}"><span class="mark">${on ? checkSvg : ''}</span><span>${esc(h.name)}</span></li>`;
+      const miss = rec?.skipped?.includes(h.id);
+      const note = on ? '' : miss ? '<em>できなかった</em>' : '';
+      return `<li class="${on ? '' : 'off'}" style="${colorVars(h.color)}"><span class="mark">${on ? checkSvg : miss ? crossSvg : ''}</span><span>${esc(h.name)}</span>${note}</li>`;
     }).join('');
     $('#dayDetail').innerHTML = `<h2>${head}<span>${time}</span></h2>${state.habits.length ? `<ul class="check-list">${items}</ul>` : '<p class="empty-note">習慣がありません</p>'}`;
   }
@@ -747,8 +812,8 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
 
   // ---------- history ----------
   function renderHistory() {
-    const keys = Object.keys(state.days).filter((k) => state.days[k].done.length).sort().reverse().slice(0, 60);
-    const best = Math.min(...Object.values(state.days).map((r) => (r.complete && r.seconds != null ? r.seconds : Infinity)));
+    const keys = Object.keys(state.days).filter((k) => state.days[k].finished || state.days[k].done.length).sort().reverse().slice(0, 60);
+    const best = bestTime();
     const t = todayKey();
     $('#histList').innerHTML = keys.length ? keys.map((k) => {
       const r = state.days[k];
@@ -757,7 +822,8 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
       const ratio = Math.min(1, r.done.length / total);
       const label = k === t ? '今日' : k === addDays(t, -1) ? '昨日' : DOW[d.getDay()] + '曜日';
       const time = r.seconds != null ? fmtSecs(r.seconds) : '—';
-      const sub = r.complete ? (r.seconds === best ? '<span class="chip">ベスト</span>' : '全部おわり') : `${r.done.length}/${total}`;
+      const score = `${r.done.length}/${total}${r.complete ? ' 全部できた' : r.finished ? '' : ' 途中'}`;
+      const sub = r.complete && r.seconds === best ? `${score}<span class="chip">ベスト</span>` : score;
       return `<li class="hist-row"><div class="hist-date">${d.getMonth() + 1}/${d.getDate()}<small>${label}</small></div><div class="hist-bar"><i style="width:${ratio * 100}%"></i></div><div class="hist-time">${time}<span class="sub">${sub}</span></div></li>`;
     }).join('') : '<li class="empty-note">まだ記録がありません。ホームでカードをスワイプしよう。</li>';
   }
@@ -770,21 +836,32 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
     for (let i = n - 1; i >= 0; i--) { const k = addDays(t, -i); if (k >= earliest) keys.push(k); }
     return keys;
   }
+  // Best time only counts days where every habit was done, so passing everything fast doesn't win.
+  function bestTime() {
+    const times = Object.values(state.days).filter((r) => r.complete && r.seconds != null).map((r) => r.seconds);
+    return times.length ? Math.min(...times) : null;
+  }
   function renderStats() {
     const win = windowKeys(30);
+    let doneSum = 0, totalSum = 0;
+    win.forEach((k) => {
+      const r = state.days[k];
+      doneSum += r ? r.done.length : 0;
+      totalSum += r?.total || state.habits.length;
+    });
+    const rate = totalSum ? Math.round((doneSum / totalSum) * 100) : 0;
     const fullDays = win.filter((k) => state.days[k]?.complete).length;
-    const rate = win.length ? Math.round((fullDays / win.length) * 100) : 0;
-    const times = Object.values(state.days).filter((r) => r.complete && r.seconds != null).map((r) => r.seconds);
-    const best = times.length ? Math.min(...times) : null;
+    const best = bestTime();
     $('#statsRange').textContent = `直近${win.length}日`;
     $('#tiles').innerHTML = [
-      ['いまの連続', `${overallStreak()}<small>日</small>`],
+      ['いまの連続', `${overallStreak()}<small>日</small>`, '最後までスワイプした日'],
       ['最長の連続', `${longestStreak()}<small>日</small>`],
-      ['全部できた率', `${rate}<small>%</small>`],
-      ['ベストタイム', best != null ? fmtSecs(best) : '—'],
-    ].map(([l, v]) => `<div class="tile"><div class="tile-label">${l}</div><div class="tile-value">${v}</div></div>`).join('');
+      ['達成率', `${rate}<small>%</small>`, `${doneSum}/${totalSum}回できた`],
+      ['ベストタイム', best != null ? fmtSecs(best) : '—', `全部できた日 ${fullDays}日の中で`],
+    ].map(([l, v, note]) => `<div class="tile"><div class="tile-label">${l}</div><div class="tile-value">${v}</div>${note ? `<div class="tile-note">${note}</div>` : ''}</div>`).join('');
 
     const t = todayKey();
+    $('#chartNote').textContent = '濃い緑は全部できた日';
     let bars = '';
     for (let i = 13; i >= 0; i--) {
       const k = addDays(t, -i);
