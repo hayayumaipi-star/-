@@ -272,6 +272,59 @@ async function run() {
     assert.equal((await stored(page)).session.activeMs, 2000);
   });
 
+  const wd = (offset) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.getDay(); };
+
+  await test('schedules: a habit not due today stays off the stack', async () => {
+    const state = makeState();
+    state.habits[1].days = [wd(1)];
+    const page = await open({ state });
+    assert.equal(await text(page, '#count'), 'あと3枚');
+    await press(page, 'ArrowRight', 'ArrowRight', 'ArrowRight');
+    assert.equal(await text(page, '#donePct'), '100%');
+    assert.equal((await stored(page)).days[dayKey(0)].total, 3);
+  });
+
+  await test('schedules: a rest day shows no cards and keeps the streak', async () => {
+    const state = makeState({ days: { [dayKey(-6)]: pastDay(4, [0, 1, 2, 3]) } });
+    state.habits.forEach((h) => { h.days = [wd(1)]; });
+    const page = await open({ state });
+    assert.ok(await page.isVisible('#rest'));
+    assert.equal(await text(page, '#restNext'), '明日は4つ');
+    assert.equal(await page.locator('.card').count(), 0);
+    assert.ok(await page.isHidden('#clock'));
+    assert.equal(await text(page, '#streakNum'), '1');
+  });
+
+  await test('schedules: pick weekdays in settings', async () => {
+    const page = await open({ state: makeState(), hash: '#settings' });
+    const row = '.edit-row[data-id="h1"]';
+    assert.equal(await text(page, `${row} .sched`), '毎日');
+    await page.click(`${row} .sched`);
+    await page.click(`${row} [data-act="day"][data-day="${wd(0)}"]`);
+    const s = await stored(page);
+    assert.equal(s.habits[0].days.length, 6);
+    assert.ok(!s.habits[0].days.includes(wd(0)));
+    for (const d of [0, 1, 2, 3, 4, 5, 6].filter((d) => d !== wd(0))) await page.click(`${row} [data-act="day"][data-day="${d}"]`);
+    assert.equal((await stored(page)).habits[0].days.length, 1, 'the last day can be removed');
+    assert.equal(await text(page, '#snackText'), '少なくとも1日は選んでください');
+    await page.click('.back[data-go="records"]');
+    await page.click('.back[data-go="today"]');
+    assert.equal(await text(page, '#count'), 'あと3枚');
+  });
+
+  await test('schedules: rates only count the days a habit was due', async () => {
+    const state = makeState({ names: ['A', 'B'], days: {
+      [dayKey(-1)]: pastDay(2, [0, 1]),
+      [dayKey(-2)]: { done: ['h1'], skipped: [], seconds: 4, total: 1, finished: true, complete: true },
+    } });
+    state.habits[1].days = [wd(-1)];
+    const page = await open({ state, hash: '#records' });
+    assert.equal(await text(page, '#statRate'), '100%');
+    assert.deepEqual(await page.$$eval('#habitStats .pct', (els) => els.map((e) => e.textContent)), ['100%', '100%']);
+    await page.click(`[data-day="${dayKey(-2)}"]`).catch(async () => { await page.click('#prevMonth'); await page.click(`[data-day="${dayKey(-2)}"]`); });
+    assert.equal(await page.locator('#detailRows .row').count(), 1);
+  });
+
   await test('no horizontal overflow on a small phone, light and dark', async () => {
     for (const scheme of ['light', 'dark']) {
       for (const hash of ['', '#records', '#settings']) {
