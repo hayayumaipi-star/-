@@ -20,6 +20,8 @@ jobs:
   build:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       # Each run gets a higher versionCode, as Play requires for every upload.
       VERSION_CODE: ${{ github.run_number }}
@@ -63,6 +65,19 @@ jobs:
         with:
           name: swipe-habit-test-apk-${{ github.run_number }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      # A fixed link for trying the latest build on a phone, no GitHub login needed:
+      # https://github.com/<owner>/<repo>/releases/download/test-apk/swipe-habit-test.apk
+      - name: Publish the test APK as a pre-release
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk swipe-habit-test.apk
+          gh release delete test-apk --yes --cleanup-tag || true
+          gh release create test-apk swipe-habit-test.apk --prerelease --target "$GITHUB_SHA" \
+            --title "テスト版 #${{ github.run_number }}" \
+            --notes "スマホで試すためのテスト版です（Play には出しません）。swipe-habit-test.apk をダウンロードして開くとインストールできます。"
 
       - uses: actions/upload-artifact@v5
         if: env.HAS_KEY == 'true'
