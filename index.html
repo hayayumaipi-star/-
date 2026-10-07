@@ -192,7 +192,7 @@ button:disabled { cursor: default; }
 .link { justify-self: end; border: 0; background: none; color: var(--accent-ink); font-size: 14px; font-weight: 800; padding: 8px 12px; }
 .label { margin: 0 0 12px; font-size: 12px; font-weight: 800; color: var(--sub); letter-spacing: .04em; }
 
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-top: 8px; }
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding-top: 8px; }
 .stat { min-width: 0; }
 .stat b { display: block; font-size: 30px; font-weight: 900; line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .stat b small { font-size: 13px; font-weight: 800; letter-spacing: 0; margin-left: 2px; }
@@ -383,7 +383,6 @@ button:disabled { cursor: default; }
     <section class="stats">
       <div class="stat"><b id="statStreak"></b><span>連続</span></div>
       <div class="stat"><b id="statRate"></b><span>30日の達成率</span></div>
-      <div class="stat"><b id="statBest"></b><span>ベストタイム</span></div>
     </section>
     <section>
       <div class="month">
@@ -460,8 +459,6 @@ button:disabled { cursor: default; }
   const COLOR_KEYS = Object.keys(COLORS);
   const STORE_KEY = 'speedtask.v1';
   const MAX_HABITS = 12;
-  // A pause longer than this between swipes means you stepped away; that time isn't counted.
-  const GAP_MS = 60 * 1000;
   const DOW = ['日', '月', '火', '水', '木', '金', '土'];
   const $ = (s) => document.querySelector(s);
   const pad = (n) => String(n).padStart(2, '0');
@@ -479,18 +476,6 @@ button:disabled { cursor: default; }
   const CROSS = '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-cross"/></svg>';
   const dayLabel = (k) => { const d = parseKey(k); return `${d.getMonth() + 1}月${d.getDate()}日（${DOW[d.getDay()]}）`; };
 
-  function fmtSecs(s) {
-    if (s == null) return '—';
-    if (s < 60) return `${s.toFixed(2)}<small>秒</small>`;
-    if (s < 3600) return `${Math.floor(s / 60)}<small>分</small>${pad(Math.floor(s % 60))}<small>秒</small>`;
-    return `${Math.floor(s / 3600)}<small>時間</small>${pad(Math.floor((s % 3600) / 60))}<small>分</small>`;
-  }
-  function plainSecs(s) {
-    if (s < 60) return `${s.toFixed(2)}秒`;
-    if (s < 3600) return `${Math.floor(s / 60)}分${Math.floor(s % 60)}秒`;
-    return `${Math.floor(s / 3600)}時間${Math.floor((s % 3600) / 60)}分`;
-  }
-
   // ---------- state ----------
   function defaultHabits() {
     return [['Run5km', 'mint'], ['Claudecodeを開く', 'orange'], ['入門問題英文精講をとく', 'pink'], ['Xポストする', 'purple'], ['Leap開く', 'blue']]
@@ -507,10 +492,9 @@ button:disabled { cursor: default; }
     for (let i = 24; i >= 1; i--) {
       const k = addDays(t, -i);
       if (i === 3 || i === 11 || i === 19) continue;
-      const secs = +(5.4 + ((i * 47) % 61) / 10).toFixed(2);
       const partial = i === 1 || i === 5 || i === 8 || i === 15 || i === 21;
       const done = partial ? all.filter((_, j) => (j + i) % 4 !== 0) : all.slice();
-      days[k] = { done, skipped: all.filter((id) => !done.includes(id)), seconds: secs, total: all.length, finished: true, complete: !partial, sample: true };
+      days[k] = { done, skipped: all.filter((id) => !done.includes(id)), total: all.length, finished: true, ended: true, complete: !partial, sample: true };
     }
     return { habits, days, session: null, sample: true, onboarded: false, welcomed: true };
   }
@@ -525,6 +509,9 @@ button:disabled { cursor: default; }
       if (!Array.isArray(d.skipped)) d.skipped = [];
       if (typeof d.total !== 'number') d.total = d.done.length + d.skipped.length;
       if (d.finished === undefined) d.finished = !!d.complete;
+      // Older saves marked a day once finished by its time; keep that mark and drop the time.
+      if (d.ended === undefined) d.ended = d.finished || d.seconds != null;
+      delete d.seconds;
     });
     const firstKey = Object.keys(s.days).sort()[0] || todayKey();
     const isKey = (k) => typeof k === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(k);
@@ -543,7 +530,8 @@ button:disabled { cursor: default; }
     if (s.session && (typeof s.session !== 'object' || !Array.isArray(s.session.queue))) s.session = null;
     if (s.session) {
       s.session.history = (s.session.history || []).filter((a) => ['done', 'pass', 'retry'].includes(a.type));
-      if (typeof s.session.activeMs !== 'number') { s.session.activeMs = 0; s.session.lastAt = null; }
+      ['startedAt', 'finishedAt', 'activeMs', 'lastAt'].forEach((f) => delete s.session[f]);
+      s.session.history.forEach((a) => { delete a.ms; delete a.prevLastAt; });
     }
     if (s.onboarded === undefined) s.onboarded = true;
     if (s.welcomed === undefined) s.welcomed = true;
@@ -586,12 +574,12 @@ button:disabled { cursor: default; }
     const r = state.days[k];
     return state.habits.filter((h) => onDay(h, k) || r?.done.includes(h.id) || r?.skipped.includes(h.id));
   };
-  const newDay = (k) => ({ done: [], skipped: [], seconds: null, total: habitsFor(k).length, finished: false, complete: false });
+  const newDay = (k) => ({ done: [], skipped: [], ended: false, total: habitsFor(k).length, finished: false, complete: false });
   const earliestKey = () => Object.keys(state.days).sort()[0];
 
   function ensureSession() {
     const t = todayKey();
-    if (!state.session || state.session.date !== t) state.session = { date: t, queue: [], history: [], startedAt: null, finishedAt: null, activeMs: 0, lastAt: null };
+    if (!state.session || state.session.date !== t) state.session = { date: t, queue: [], history: [] };
     if (!state.days[t]) state.days[t] = newDay(t);
     const s = state.session, day = state.days[t];
     const exists = new Set(state.habits.map((h) => h.id));
@@ -605,20 +593,16 @@ button:disabled { cursor: default; }
       .filter((a) => (a.type === 'retry' ? a.ids.length : ids.has(a.id)));
     refreshComplete();
   }
-  // finished = every card swiped today; complete = every habit done.
+  // finished = every card swiped today; complete = every habit done; ended = finished at some point today.
   function refreshComplete() {
     const s = state.session, day = today();
     day.total = habitsFor(s.date).length;
     day.finished = day.total > 0 && s.queue.length === 0;
     day.complete = day.finished && day.done.length === day.total;
-    if (day.finished && !s.finishedAt) {
-      s.finishedAt = Date.now();
-      if (day.seconds == null && s.startedAt) day.seconds = +((s.activeMs || 0) / 1000).toFixed(2);
-    }
-    if (!day.finished) s.finishedAt = null;
+    if (day.finished) day.ended = true;
   }
   // A day counts toward the streak once every card was swiped, even while misses are being redone.
-  const recorded = (d) => !!d && (d.finished || d.seconds != null);
+  const recorded = (d) => !!d && (d.finished || d.ended);
 
   // A rest day (nothing scheduled, nothing recorded) neither counts toward nor breaks the streak.
   const restDay = (k) => { const r = state.days[k]; return r ? !r.total && !recorded(r) : !habitsOn(k).length; };
@@ -643,11 +627,6 @@ button:disabled { cursor: default; }
     }
     return n;
   }
-  // Best time only counts days where everything was done, so passing every card fast doesn't win.
-  function bestTime() {
-    const times = Object.values(state.days).filter((r) => r.complete && r.seconds != null).map((r) => r.seconds);
-    return times.length ? Math.min(...times) : null;
-  }
   function windowKeys(n) {
     const t = todayKey();
     const earliest = Object.keys(state.days).sort()[0] || t;
@@ -657,18 +636,11 @@ button:disabled { cursor: default; }
   }
 
   // ---------- actions ----------
-  function act(type, startHint) {
+  function act(type) {
     const s = state.session;
     if (!s.queue.length) return;
     const id = s.queue.shift();
-    // Count the time since the previous swipe, or since the finger touched the card when starting a new sitting.
-    const now = Date.now();
-    const from = s.lastAt && now - s.lastAt <= GAP_MS ? s.lastAt : Math.min(startHint || now, now);
-    const ms = now - from;
-    s.history.push({ type, id, ms, prevLastAt: s.lastAt });
-    s.activeMs = (s.activeMs || 0) + ms;
-    s.lastAt = now;
-    if (!s.startedAt) s.startedAt = from;
+    s.history.push({ type, id });
     (type === 'done' ? today().done : today().skipped).push(id);
     state.onboarded = true;
     refreshComplete();
@@ -698,12 +670,9 @@ button:disabled { cursor: default; }
       day.skipped = day.skipped.filter((x) => x !== a.id);
       s.queue = s.queue.filter((x) => x !== a.id);
       s.queue.unshift(a.id);
-      s.activeMs = Math.max(0, (s.activeMs || 0) - (a.ms || 0));
-      s.lastAt = a.prevLastAt ?? null;
-      // Undoing the very first finish reopens the timing; after a redo the first time is kept.
-      if (wasFinished && !s.history.some((h) => h.type === 'retry')) day.seconds = null;
+      // Undoing the first finish reopens the day; after a redo it stays counted.
+      if (wasFinished && !s.history.some((h) => h.type === 'retry')) day.ended = false;
     }
-    if (!s.history.length) { s.startedAt = null; s.activeMs = 0; s.lastAt = null; day.seconds = null; }
     refreshComplete();
     save();
     hideSnack();
@@ -772,14 +741,12 @@ button:disabled { cursor: default; }
     const appearing = done.hidden && day.finished;
     done.hidden = !day.finished;
     if (day.finished) {
-      const secs = day.seconds, nDone = day.done.length, nMiss = day.skipped.length;
+      const nDone = day.done.length, nMiss = day.skipped.length;
       const pct = Math.round((nDone / total) * 100);
       $('#donePct').innerHTML = `${pct}<small>%</small>`;
       $('#donePct').classList.toggle('perfect', !nMiss);
       $('#doneLine').textContent = nMiss ? `${total}つ中${nDone}つ、できた。` : '全部できた。';
-      // The time is only a side note, and only when the day was swiped in one sitting.
-      const time = secs != null && secs < 3600 ? `<span class="sep">・</span>${plainSecs(secs)}` : '';
-      $('#doneSub').innerHTML = `${FLAME}${overallStreak()}日連続${time}`;
+      $('#doneSub').innerHTML = `${FLAME}${overallStreak()}日連続`;
       $('#retryBtn').hidden = !nMiss;
       $('#retryBtn').textContent = `できなかった${nMiss}つをやり直す`;
       $('#week').innerHTML = weekHTML();
@@ -826,7 +793,7 @@ button:disabled { cursor: default; }
   const buzz = (p) => { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* unsupported */ } };
 
   // ---------- swipe ----------
-  function fling(type, el, dy = 0, startHint) {
+  function fling(type, el, dy = 0) {
     if (!el) return;
     const dir = type === 'done' ? 1 : -1;
     const name = habitById(el.dataset.id)?.name || '';
@@ -836,7 +803,7 @@ button:disabled { cursor: default; }
     el.classList.add('flying');
     el.style.transform = `translate(${dir * (window.innerWidth * 0.8 + 180)}px, ${dy * 0.3 - 24}px) rotate(${dir * 22}deg)`;
     setTimeout(() => el.remove(), 460);
-    act(type, startHint);
+    act(type);
     buzz(type === 'done' ? 10 : [6, 30, 6]);
     render();
     snack(type === 'done' ? 'やった' : 'できなかった', '取り消す', undo);
@@ -847,7 +814,7 @@ button:disabled { cursor: default; }
   stack.addEventListener('pointerdown', (e) => {
     const el = e.target.closest('.card.top');
     if (!el || drag || (e.pointerType === 'mouse' && e.button !== 0)) return;
-    drag = { el, x: e.clientX, y: e.clientY, wall: Date.now(), dx: 0, dy: 0, lx: e.clientX, lt: performance.now(), v: 0 };
+    drag = { el, x: e.clientX, y: e.clientY, dx: 0, dy: 0, lx: e.clientX, lt: performance.now(), v: 0 };
     el.setPointerCapture(e.pointerId);
     el.classList.add('dragging');
   });
@@ -864,11 +831,11 @@ button:disabled { cursor: default; }
   });
   function endDrag() {
     if (!drag) return;
-    const { el, dx, dy, v, wall } = drag;
+    const { el, dx, dy, v } = drag;
     drag = null;
     const far = Math.min(110, stack.clientWidth * 0.3);
-    if (dx > far || (dx > 30 && v > 0.5)) return fling('done', el, dy, wall);
-    if (dx < -far || (dx < -30 && v < -0.5)) return fling('pass', el, dy, wall);
+    if (dx > far || (dx > 30 && v > 0.5)) return fling('done', el, dy);
+    if (dx < -far || (dx < -30 && v < -0.5)) return fling('pass', el, dy);
     el.classList.remove('dragging');
     el.style.transform = '';
     el.style.setProperty('--ok', 0);
@@ -949,7 +916,6 @@ button:disabled { cursor: default; }
     const rate = totalSum ? Math.round((doneSum / totalSum) * 100) : 0;
     $('#statStreak').innerHTML = `${overallStreak()}<small>日</small>`;
     $('#statRate').innerHTML = `${rate}<small>%</small>`;
-    $('#statBest').innerHTML = fmtSecs(bestTime());
 
     const y = calMonth.getFullYear(), m = calMonth.getMonth();
     $('#monthTitle').textContent = `${y}年${m + 1}月`;
@@ -996,7 +962,7 @@ button:disabled { cursor: default; }
     $('#detailTitle').textContent = isToday ? `今日・${dayLabel(k)}` : dayLabel(k);
     let meta = '記録なし';
     const list = habitsFor(k);
-    if (recorded(r) || r?.done.length || r?.skipped.length) meta = `${r.done.length}/${r.total || list.length}${r.seconds != null ? `・${plainSecs(r.seconds)}` : ''}`;
+    if (recorded(r) || r?.done.length || r?.skipped.length) meta = `${r.done.length}/${r.total || list.length}`;
     else if (!list.length && activeHabits().length) meta = 'お休み';
     $('#detailMeta').textContent = meta;
     $('#detailRows').innerHTML = list.map((h) => rowHTML(h, statusOf(k, h.id), false)).join('');

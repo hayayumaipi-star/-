@@ -38,10 +38,10 @@ function makeState({ names = ['A', 'B', 'C', 'D'], days = {}, ...rest } = {}) {
   return { habits, days, session: null, sample: false, onboarded: true, welcomed: true, ...rest };
 }
 // A finished past day: `done` is a list of habit indexes (0-based).
-function pastDay(total, doneIdx, seconds = 6.5) {
+function pastDay(total, doneIdx) {
   const all = Array.from({ length: total }, (_, i) => `h${i + 1}`);
   const done = doneIdx.map((i) => all[i]);
-  return { done, skipped: all.filter((id) => !done.includes(id)), seconds, total, finished: true, complete: done.length === total };
+  return { done, skipped: all.filter((id) => !done.includes(id)), total, finished: true, ended: true, complete: done.length === total };
 }
 
 // ---------- harness ----------
@@ -122,12 +122,6 @@ async function run() {
     delete state.welcomed;
     const page = await open({ state, hash: '' });
     assert.ok(await page.isVisible('#view-home'));
-  });
-
-  await test('the swipe screen shows no timer', async () => {
-    const page = await open({ state: makeState() });
-    await press(page, 'ArrowRight');
-    assert.equal(await page.locator('#view-today').innerText().then((t) => /\d+\.\d{2}秒/.test(t)), false);
   });
 
   await test('the finish screens have no share button', async () => {
@@ -225,7 +219,7 @@ async function run() {
       assert.equal(await page.locator('#detailRows .row').count(), 4);
       assert.equal(await page.locator('#detailRows button').count(), 0, 'past rows are tappable');
     }
-    assert.equal(await text(page, '#detailMeta'), '4/4・6.50秒');
+    assert.equal(await text(page, '#detailMeta'), '4/4');
     assert.equal(await text(page, '#statStreak'), '1日');
   });
 
@@ -269,7 +263,7 @@ async function run() {
     await page.click('#view-home [data-go="records"]'); await page.waitForTimeout(200);
     if (!(await page.locator(`[data-day="${dayKey(-1)}"]`).count())) await page.click('#prevMonth');
     await page.click(`[data-day="${dayKey(-1)}"]`);
-    assert.equal(await text(page, '#detailMeta'), '2/4・6.50秒');
+    assert.equal(await text(page, '#detailMeta'), '2/4');
     assert.deepEqual(await page.$$eval('#detailRows .name', (els) => els.map((e) => e.textContent)), ['A', 'B', 'C', 'D']);
   });
 
@@ -320,29 +314,34 @@ async function run() {
     assert.deepEqual(s.days[y].done, ['h1']);
   });
 
-  // A session where h1 was swiped `agoMs` ago, after `activeMs` of swiping.
-  function midSession(agoMs, activeMs) {
-    const t = dayKey(0), now = Date.now();
-    const state = makeState({ days: { [t]: { done: ['h1'], skipped: [], seconds: null, total: 4, finished: false, complete: false } } });
-    state.session = { date: t, queue: ['h2', 'h3', 'h4'], history: [{ type: 'done', id: 'h1', ms: activeMs, prevLastAt: null }],
-      startedAt: now - agoMs - activeMs, finishedAt: null, activeMs, lastAt: now - agoMs };
-    return state;
-  }
-
-  await test('time away between swipes is not counted', async () => {
-    const page = await open({ state: midSession(5 * 60 * 1000, 3000) });
-    await press(page, 'ArrowRight', 'ArrowRight', 'ArrowRight');
-    const secs = (await stored(page)).days[dayKey(0)].seconds;
-    assert.ok(secs >= 3 && secs < 5, `expected about 3s, got ${secs}`);
+  await test('no seconds anywhere: swipe, finish, home, records', async () => {
+    const page = await open({ state: makeState({ days: { [dayKey(-1)]: pastDay(4, [0, 1]) } }) });
+    const noSecs = async (sel) => assert.equal(/秒/.test(await page.locator(sel).innerText()), false, `seconds shown in ${sel}`);
+    await noSecs('#view-today');
+    await press(page, 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight');
+    await noSecs('#view-today');
+    await page.click('#view-today [data-go="home"]'); await page.waitForTimeout(200);
+    await noSecs('#view-home');
+    await page.click('#view-home [data-go="records"]'); await page.waitForTimeout(200);
+    await noSecs('#view-records');
+    assert.equal(await page.locator('.stat').count(), 2);
+    const s = await stored(page);
+    assert.ok(!('seconds' in s.days[dayKey(0)]) && !('activeMs' in s.session));
   });
 
-  await test('time within a sitting is counted, and undo takes it back', async () => {
-    const page = await open({ state: midSession(10 * 1000, 2000) });
-    await press(page, 'ArrowRight');
-    const active = (await stored(page)).session.activeMs;
-    assert.ok(active >= 12000 && active < 14000, `expected about 12s, got ${active}`);
-    await page.click('#snackAct'); await page.waitForTimeout(200);
-    assert.equal((await stored(page)).session.activeMs, 2000);
+  await test('older saves with times load without them and keep the streak', async () => {
+    const t = dayKey(0);
+    const state = makeState({ days: {
+      [dayKey(-1)]: { done: ['h1', 'h2', 'h3', 'h4'], skipped: [], seconds: 5.2, total: 4, finished: true, complete: true },
+      [t]: { done: ['h1'], skipped: ['h2', 'h3', 'h4'], seconds: 3.1, total: 4, finished: false, complete: false },
+    } });
+    state.session = { date: t, queue: ['h2', 'h3', 'h4'], history: [{ type: 'done', id: 'h1', ms: 900, prevLastAt: null }], startedAt: 1, finishedAt: null, activeMs: 900, lastAt: 2 };
+    state.days[t].skipped = [];
+    const page = await open({ state, hash: '' });
+    assert.equal(await text(page, '#homeStreak'), '2日連続', 'a day redone after finishing still counts');
+    const s = await stored(page);
+    assert.ok(!('seconds' in s.days[dayKey(-1)]) && s.days[dayKey(-1)].ended);
+    assert.deepEqual(Object.keys(s.session).sort(), ['date', 'history', 'queue']);
   });
 
   await test('schedules: a habit not due today stays off the stack', async () => {
