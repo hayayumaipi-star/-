@@ -460,6 +460,41 @@ async function run() {
     assert.equal(await page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length), 0);
   });
 
+  // A stand-in for the Android app shell: records widget updates and serves a launch link.
+  const nativeShell = (launchUrl) => `
+    window.__widget = [];
+    window.Capacitor = { isNativePlatform: () => true, Plugins: {
+      App: { addListener: () => {}, exitApp: () => {}, getLaunchUrl: async () => (${JSON.stringify(launchUrl)} ? { url: ${JSON.stringify(launchUrl)} } : undefined) },
+      WidgetBridge: { update: async (d) => { window.__widget.push(d); } },
+    } };`;
+
+  await test('widget: gets today\'s summary after every change', async () => {
+    const page = await open({ state: makeState({ days: { [dayKey(-1)]: pastDay(4, [0]) } }), hash: '', init: nativeShell(null) });
+    const last = () => page.evaluate(() => window.__widget[window.__widget.length - 1]);
+    assert.deepEqual(await last(), { date: dayKey(0), big: '4枚', small: 'スワイプではじめる', streak: 1 });
+    await page.click('.hero-start'); await page.waitForTimeout(200);
+    await press(page, 'ArrowRight');
+    assert.deepEqual(await last(), { date: dayKey(0), big: 'あと3枚', small: '1つできた', streak: 1 });
+    await press(page, 'ArrowLeft', 'ArrowRight', 'ArrowRight');
+    assert.deepEqual(await last(), { date: dayKey(0), big: '75%', small: '4つ中3つ、できた', streak: 2 });
+  });
+
+  await test('widget: a rest day says so', async () => {
+    const state = makeState();
+    state.habits.forEach((h) => { h.days = [wd(1)]; });
+    const page = await open({ state, hash: '', init: nativeShell(null) });
+    const w = await page.evaluate(() => window.__widget[window.__widget.length - 1]);
+    assert.equal(w.big, 'お休み');
+    assert.equal(w.small, '明日は4つ');
+  });
+
+  await test('widget: tapping it opens the cards', async () => {
+    const page = await open({ state: makeState(), hash: '', init: nativeShell('jp.swipeshukan.app://today') });
+    await page.waitForTimeout(300);
+    assert.ok(await page.isVisible('#view-today'));
+    assert.equal(await text(page, '#count'), 'あと4枚');
+  });
+
   await test('no horizontal overflow on a small phone, light and dark', async () => {
     for (const scheme of ['light', 'dark']) {
       for (const hash of ['', '#today', '#records', '#settings']) {

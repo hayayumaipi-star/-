@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_name">今日の習慣</string>
+    <string name="widget_description">今日の進み具合と連続日数。タップするとカードが開きます。</string>
+    <string name="widget_label">今日</string>
+    <string name="widget_stale_big">今日の習慣</string>
+    <string name="widget_stale_small">タップしてはじめる</string>
+</resources>

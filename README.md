@@ -58,6 +58,7 @@ GitHub Pages などにそのまま置けます。スマホでは「ホーム画�
 ## Android アプリ（Google Play）
 
 Capacitor で Android アプリにしています（パッケージ名 `jp.swipeshukan.app`）。
+ホーム画面ウィジェット（`TodayWidget`）があり、アプリで記録が変わるたびに `WidgetBridge` プラグイン経由で今日の状態を受け取ります。タップするとスワイプ画面が開きます。
 
 ```sh
 npm run sync:android   # Web アプリを android/ にコピー

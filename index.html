@@ -475,6 +475,9 @@ button:disabled { cursor: default; }
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const colorOf = (key) => COLORS[key] || COLORS.mint;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  // Set when running inside the Android app (Capacitor); absent on the web.
+  const cap = window.Capacitor;
+  const native = !!(cap && cap.isNativePlatform && cap.isNativePlatform());
   const FLAME = '<svg class="flame" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flame"/></svg>';
   const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-check"/></svg>';
   const CROSS = '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-cross"/></svg>';
@@ -544,7 +547,24 @@ button:disabled { cursor: default; }
   function load() {
     try { return migrate(JSON.parse(localStorage.getItem(STORE_KEY))); } catch (e) { return null; }
   }
-  function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable */ } }
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable */ }
+    syncWidget();
+  }
+  // Hands today's summary to the Android home screen widget after every change.
+  function syncWidget() {
+    const bridge = native && cap.Plugins && cap.Plugins.WidgetBridge;
+    if (!bridge || !state.session || !state.days[state.session.date]) return;
+    const s = state.session, day = state.days[s.date], total = day.total;
+    const nDone = day.done.length, nMiss = day.skipped.length;
+    let big, small;
+    if (!total && !activeHabits().length) { big = '—'; small = '習慣を追加しよう'; }
+    else if (!total) { big = 'お休み'; small = nextScheduled() || '今日の習慣はありません'; }
+    else if (day.finished) { big = `${Math.round((nDone / total) * 100)}%`; small = nMiss ? `${total}つ中${nDone}つ、できた` : '全部できた'; }
+    else if (nDone + nMiss) { big = `あと${s.queue.length}枚`; small = `${nDone}つできた`; }
+    else { big = `${total}枚`; small = 'スワイプではじめる'; }
+    Promise.resolve(bridge.update({ date: s.date, big, small, streak: overallStreak() })).catch(() => {});
+  }
 
   let state = load() || freshState();
   const today = () => state.days[state.session.date];
@@ -1295,9 +1315,16 @@ button:disabled { cursor: default; }
   go(location.hash.slice(1) || 'home');
   booted = true;
 
+  // The widget opens the app with jp.swipeshukan.app://today: go straight to the cards.
+  if (native && cap.Plugins && cap.Plugins.App) {
+    const openFromLink = (url) => { if (url && /:\/\/today/.test(url) && state.welcomed) go('today'); };
+    try {
+      Promise.resolve(cap.Plugins.App.getLaunchUrl()).then((r) => openFromLink(r && r.url)).catch(() => {});
+      cap.Plugins.App.addListener('appUrlOpen', (e) => openFromLink(e && e.url));
+    } catch (e) { /* older app shell without links */ }
+  }
+
   // Inside the Android app (Capacitor) the system back button moves up to home, and leaves from home.
-  const cap = window.Capacitor;
-  const native = !!(cap && cap.isNativePlatform && cap.isNativePlatform());
   if (native && cap.Plugins && cap.Plugins.App) {
     cap.Plugins.App.addListener('backButton', () => {
       if (current === 'home' || current === 'welcome') cap.Plugins.App.exitApp();
