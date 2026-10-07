@@ -399,10 +399,10 @@ async function run() {
     const days = { [dayKey(-1)]: pastDay(4, [0, 1]) };
     const page = await open({ state: makeState({ days }), hash: '#settings' });
     const [download] = await Promise.all([page.waitForEvent('download'), page.click('#exportBtn')]);
-    assert.equal(download.suggestedFilename(), `speedtask-${dayKey(0)}.json`);
+    assert.equal(download.suggestedFilename(), `swipe-habit-${dayKey(0)}.json`);
     const json = fs.readFileSync(await download.path(), 'utf8');
     const data = JSON.parse(json);
-    assert.equal(data.app, 'SpeedTask');
+    assert.equal(data.app, 'swipe-habit');
     assert.deepEqual(data.state.habits.map((h) => h.name), ['A', 'B', 'C', 'D']);
 
     const fresh = await open({ state: makeState({ names: ['X'] }), hash: '#settings' });
@@ -421,7 +421,7 @@ async function run() {
     const page = await open({ state: makeState(), hash: '#settings' });
     await page.setInputFiles('#importFile', { name: 'x.json', mimeType: 'application/json', buffer: Buffer.from('{"hello": 1}') });
     await page.waitForTimeout(200);
-    assert.equal(await text(page, '#snackText'), '読み込めませんでした。SpeedTaskのバックアップを選んでください');
+    assert.equal(await text(page, '#snackText'), '読み込めませんでした。スワイプ習慣のバックアップを選んでください');
     assert.equal(await text(page, '#importBtn'), 'バックアップから戻す');
     assert.equal((await stored(page)).habits.length, 4);
   });
@@ -438,7 +438,7 @@ async function run() {
     await page.click('#view-today [data-go="home"]'); await page.click('#view-home [data-go="settings"]');
     await page.click('#exportBtn'); await page.waitForTimeout(200);
     const saved = await page.evaluate(() => window.__saved);
-    assert.deepEqual(saved.map((x) => x.filename), [`speedtask-${dayKey(0)}.json`]);
+    assert.deepEqual(saved.map((x) => x.filename), [`swipe-habit-${dayKey(0)}.json`]);
     assert.ok(saved.every((x) => x.size > 100));
     assert.equal(await text(page, '#snackText'), 'バックアップを書き出しました');
   });
@@ -458,7 +458,7 @@ async function run() {
   server = await serve();
   base = `http://127.0.0.1:${server.address().port}`;
   browser = await chromium.launch();
-  console.log('SpeedTask e2e');
+  console.log('スワイプ習慣 e2e');
   try { await run(); } finally { await browser.close(); server.close(); }
   const failed = results.filter(([ok]) => !ok).length;
   console.log(`\n${results.length - failed} passed, ${failed} failed`);

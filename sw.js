@@ -1,6 +1,7 @@
 // Offline support: cache the app shell, serve it cache-first, refresh in the background.
-const CACHE = 'speedtask-v7';
-const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
+const CACHE = 'swipe-habit-v8';
+const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png',
+  'fonts/mpr-500.woff2', 'fonts/mpr-700.woff2', 'fonts/mpr-800.woff2', 'fonts/mpr-900.woff2'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

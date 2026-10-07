@@ -3,24 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>SpeedTask</title>
+<title>スワイプ習慣</title>
 <meta name="description" content="習慣は、スワイプで終わらせる。">
 <meta name="theme-color" content="#F4F5F3" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0E1110" media="(prefers-color-scheme: dark)">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="SpeedTask">
+<meta name="apple-mobile-web-app-title" content="スワイプ習慣">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800;900&display=swap">
 </head>
 <body>
 <!--APP-START-->
 <style>
+/* M PLUS Rounded 1c ships with the app (fonts/, SIL OFL 1.1) so it renders the same offline. */
+@font-face { font-family: "M PLUS Rounded 1c"; font-weight: 500; font-style: normal; font-display: swap; src: url("fonts/mpr-500.woff2") format("woff2"); }
+@font-face { font-family: "M PLUS Rounded 1c"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/mpr-700.woff2") format("woff2"); }
+@font-face { font-family: "M PLUS Rounded 1c"; font-weight: 800; font-style: normal; font-display: swap; src: url("fonts/mpr-800.woff2") format("woff2"); }
+@font-face { font-family: "M PLUS Rounded 1c"; font-weight: 900; font-style: normal; font-display: swap; src: url("fonts/mpr-900.woff2") format("woff2"); }
 /* Layout: one quiet phone column. "今日" is a card stack; "記録" is three numbers, a month, and a list. Nothing else. */
 :root {
   --bg: #F4F5F3;
@@ -293,7 +295,7 @@ button:disabled { cursor: default; }
   <main class="view page welcome" id="view-welcome" aria-label="はじめに" hidden>
     <div class="welcome-head">
       <svg class="welcome-mark" viewBox="0 0 120 110" aria-hidden="true"><use href="#i-logo"/></svg>
-      <h1>SpeedTask</h1>
+      <h1>スワイプ習慣</h1>
       <p>習慣は、スワイプで終わらせる。</p>
     </div>
     <section>
@@ -429,7 +431,7 @@ button:disabled { cursor: default; }
       <input type="file" id="importFile" accept="application/json,.json" hidden>
       <button class="plain-link" id="clearSampleBtn" data-clear-sample hidden>サンプルの記録を消す</button>
       <button class="danger-link" id="wipeBtn">すべての記録を消す</button>
-      <p class="fine">記録はこの端末のブラウザにだけ保存されます。</p>
+      <p class="fine">記録はこの端末にだけ保存されます。</p>
     </section>
   </main>
 
@@ -442,10 +444,9 @@ button:disabled { cursor: default; }
   <symbol id="i-check" viewBox="0 0 24 24"><path d="m5.5 12.5 4 4L18.5 7.5" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-cross" viewBox="0 0 24 24"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
   <symbol id="i-logo" viewBox="0 0 120 110">
-    <rect x="16" y="26" width="62" height="70" rx="15" fill="#FF6E95" transform="rotate(-16 47 61)"/>
-    <rect x="24" y="22" width="62" height="70" rx="15" fill="#FFCB45" transform="rotate(-7 55 57)"/>
-    <rect x="34" y="18" width="66" height="72" rx="16" fill="#3DDC9F"/>
-    <path d="M51 54l11 11 22-23" fill="none" stroke="#0C0E0D" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="12" y="24" width="60" height="74" rx="15" fill="#FF9447" transform="rotate(-12 42 61)"/>
+    <rect x="42" y="14" width="62" height="78" rx="16" fill="#3DDC9F" transform="rotate(9 73 53)"/>
+    <g transform="rotate(9 73 53)"><path d="M57 53h30M75 40.5 87.5 53 75 65.5" fill="none" stroke="#0C0E0D" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/></g>
   </symbol>
 </svg>
 
@@ -457,6 +458,9 @@ button:disabled { cursor: default; }
   const COLORS = { mint: '#3DDC9F', orange: '#FF9447', pink: '#FF6E95', purple: '#B47DFF', blue: '#5AAAFF', yellow: '#FFCB45' };
   const COLOR_NAMES = { mint: 'ミント', orange: 'オレンジ', pink: 'ピンク', purple: 'パープル', blue: 'ブルー', yellow: 'イエロー' };
   const COLOR_KEYS = Object.keys(COLORS);
+  const APP_NAME = 'スワイプ習慣';
+  const BACKUP_ID = 'swipe-habit';
+  // Kept from the app's first name so records saved before the rename still load.
   const STORE_KEY = 'speedtask.v1';
   const MAX_HABITS = 12;
   const DOW = ['日', '月', '火', '水', '木', '金', '土'];
@@ -478,7 +482,7 @@ button:disabled { cursor: default; }
 
   // ---------- state ----------
   function defaultHabits() {
-    return [['Run5km', 'mint'], ['Claudecodeを開く', 'orange'], ['入門問題英文精講をとく', 'pink'], ['Xポストする', 'purple'], ['Leap開く', 'blue']]
+    return [['水を1杯のむ', 'mint'], ['ストレッチ', 'orange'], ['本を10ページ読む', 'pink'], ['英単語を10個', 'purple'], ['日記を書く', 'blue']]
       .map(([name, color]) => ({ id: uid(), name, color }));
   }
   function seed() {
@@ -1108,8 +1112,8 @@ button:disabled { cursor: default; }
 
   // ---------- backup ----------
   async function exportBackup() {
-    const name = `speedtask-${todayKey()}.json`;
-    const json = JSON.stringify({ app: 'SpeedTask', version: 1, exportedAt: new Date().toISOString(), state }, null, 2);
+    const name = `${BACKUP_ID}-${todayKey()}.json`;
+    const json = JSON.stringify({ app: BACKUP_ID, version: 1, exportedAt: new Date().toISOString(), state }, null, 2);
     if (downloadsCap) {
       try {
         await downloadsCap.save({ filename: name, data: json });
@@ -1123,7 +1127,7 @@ button:disabled { cursor: default; }
     const file = new File([json], name, { type: 'application/json' });
     try {
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'SpeedTask バックアップ' });
+        await navigator.share({ files: [file], title: `${APP_NAME} バックアップ` });
         snack('バックアップを書き出しました');
         return;
       }
@@ -1166,9 +1170,9 @@ button:disabled { cursor: default; }
     let next = null;
     try {
       const data = JSON.parse(await f.text());
-      next = migrate(data && data.app === 'SpeedTask' ? data.state : data);
+      next = migrate(data && (data.app === BACKUP_ID || data.app === 'SpeedTask') ? data.state : data);
     } catch (err) { next = null; }
-    if (!next) { snack('読み込めませんでした。SpeedTaskのバックアップを選んでください'); return; }
+    if (!next) { snack(`読み込めませんでした。${APP_NAME}のバックアップを選んでください`); return; }
     next.welcomed = true;
     pendingImport = next;
     const days = Object.values(next.days).filter((d) => d.done.length || d.finished).length;
@@ -1291,7 +1295,18 @@ button:disabled { cursor: default; }
   go(location.hash.slice(1) || 'home');
   booted = true;
 
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http') && document.querySelector('link[rel="manifest"]')) {
+  // Inside the Android app (Capacitor) the system back button moves up to home, and leaves from home.
+  const cap = window.Capacitor;
+  const native = !!(cap && cap.isNativePlatform && cap.isNativePlatform());
+  if (native && cap.Plugins && cap.Plugins.App) {
+    cap.Plugins.App.addListener('backButton', () => {
+      if (current === 'home' || current === 'welcome') cap.Plugins.App.exitApp();
+      else go('home');
+    });
+  }
+
+  // The app bundles its files, so only the web version needs the offline cache.
+  if (!native && 'serviceWorker' in navigator && location.protocol.startsWith('http') && document.querySelector('link[rel="manifest"]')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 })();
