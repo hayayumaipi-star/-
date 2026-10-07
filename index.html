@@ -222,6 +222,20 @@ button:disabled { cursor: default; }
 .danger-link, .plain-link { display: block; border: 0; background: none; padding: 10px 0; font-size: 14px; font-weight: 800; text-align: left; }
 .danger-link { color: var(--danger); }
 
+.welcome { gap: 32px; padding-top: 44px; padding-bottom: 0; }
+.welcome-head { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.welcome-mark { width: 72px; height: 66px; margin-bottom: 12px; }
+.welcome-head h1 { margin: 0; font-size: 30px; font-weight: 900; letter-spacing: -.01em; }
+.welcome-head p { margin: 0; font-size: 15px; font-weight: 800; color: var(--sub); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: flex; align-items: center; gap: 5px; border: 1.5px solid var(--line); border-radius: 999px; background: var(--surface); padding: 8px 15px; font-size: 14px; font-weight: 800; transition: background .15s, border-color .15s; }
+.chip svg { width: 14px; height: 14px; margin-left: -3px; }
+.chip[aria-pressed="true"] { background: var(--c); border-color: transparent; color: var(--card-ink); }
+.welcome .add-row { margin-top: 14px; }
+.welcome-foot { position: sticky; bottom: 0; margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 2px; padding-block: 28px 16px; background: linear-gradient(to bottom, transparent, var(--bg) 28px); }
+.start-btn { width: 100%; border: 0; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: 16px; font-weight: 900; padding: 15px; transition: opacity .2s; }
+.start-btn:disabled { opacity: .25; }
+
 @media (max-height: 680px) {
   .clock { font-size: 34px; }
   .foot { height: 56px; }
@@ -234,6 +248,29 @@ button:disabled { cursor: default; }
 </style>
 
 <div id="app">
+  <!-- はじめに -->
+  <main class="view page welcome" id="view-welcome" aria-label="はじめに" hidden>
+    <div class="welcome-head">
+      <svg class="welcome-mark" viewBox="0 0 120 110" aria-hidden="true"><use href="#i-logo"/></svg>
+      <h1>SpeedTask</h1>
+      <p>習慣は、スワイプで終わらせる。</p>
+    </div>
+    <section>
+      <p class="label">毎日やりたいことを選んでください</p>
+      <div class="chips" id="chips"></div>
+      <form class="add-row" id="welcomeAdd" autocomplete="off">
+        <span class="plus" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        <input id="welcomeInput" maxlength="30" placeholder="自分で書く" aria-label="習慣を自分で書く" enterkeyhint="done">
+        <button type="submit" id="welcomeAddBtn" hidden>追加</button>
+      </form>
+      <p class="fine">あとからいつでも変えられます。記録はこの端末にだけ保存されます。</p>
+    </section>
+    <div class="welcome-foot">
+      <button class="start-btn" id="startBtn" disabled>はじめる</button>
+      <button class="text-link" id="demoBtn">サンプルの記録で試してみる</button>
+    </div>
+  </main>
+
   <!-- 今日 -->
   <main class="view" id="view-today" aria-label="今日">
     <header class="topbar">
@@ -401,8 +438,9 @@ button:disabled { cursor: default; }
       const done = partial ? all.filter((_, j) => (j + i) % 4 !== 0) : all.slice();
       days[k] = { done, skipped: all.filter((id) => !done.includes(id)), seconds: secs, total: all.length, finished: true, complete: !partial, sample: true };
     }
-    return { habits, days, session: null, sample: true, onboarded: false };
+    return { habits, days, session: null, sample: true, onboarded: false, welcomed: true };
   }
+  const freshState = () => ({ habits: [], days: {}, session: null, sample: false, onboarded: false, welcomed: false });
   function load() {
     try {
       const s = JSON.parse(localStorage.getItem(STORE_KEY));
@@ -417,12 +455,13 @@ button:disabled { cursor: default; }
         if (typeof s.session.activeMs !== 'number') { s.session.activeMs = 0; s.session.lastAt = null; }
       }
       if (s.onboarded === undefined) s.onboarded = true;
+      if (s.welcomed === undefined) s.welcomed = true;
       return s;
     } catch (e) { return null; }
   }
   function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable */ } }
 
-  let state = load() || seed();
+  let state = load() || freshState();
   const today = () => state.days[state.session.date];
   const habitById = (id) => state.habits.find((h) => h.id === id);
   const judged = (day, id) => day.done.includes(id) || day.skipped.includes(id);
@@ -898,7 +937,7 @@ button:disabled { cursor: default; }
     }
     b.classList.remove('armed');
     b.textContent = 'すべての記録を消す';
-    state = { habits: state.habits.length ? state.habits : defaultHabits(), days: {}, session: null, sample: false, onboarded: true };
+    state = { habits: state.habits, days: {}, session: null, sample: false, onboarded: true, welcomed: true };
     cardEls.forEach((el) => el.remove());
     cardEls.clear();
     ensureSession();
@@ -916,11 +955,62 @@ button:disabled { cursor: default; }
     snack('サンプルの記録を消しました');
   });
 
+  // ---------- はじめに ----------
+  const SUGGESTIONS = ['水を1杯のむ', 'ストレッチ', '散歩する', '本を10ページ読む', '英単語を10個', '日記を書く', '筋トレ', '瞑想5分', '部屋を片付ける', '早く寝る'];
+  let picks = [], customs = [];
+  function renderWelcome() {
+    const names = [...SUGGESTIONS, ...customs];
+    $('#chips').innerHTML = names.map((n) => {
+      const i = picks.indexOf(n);
+      return `<button class="chip" data-name="${esc(n)}" aria-pressed="${i > -1}"${i > -1 ? ` style="--c:${colorOf(COLOR_KEYS[i % COLOR_KEYS.length])}"` : ''}>${i > -1 ? CHECK : ''}${esc(n)}</button>`;
+    }).join('');
+    $('#startBtn').disabled = !picks.length;
+    $('#startBtn').textContent = picks.length ? `${picks.length}つではじめる` : 'はじめる';
+    $('#welcomeAddBtn').hidden = !$('#welcomeInput').value.trim();
+  }
+  function pick(name) {
+    if (picks.includes(name)) picks = picks.filter((n) => n !== name);
+    else if (picks.length >= MAX_HABITS) snack(`習慣は${MAX_HABITS}個までです`);
+    else picks.push(name);
+  }
+  $('#chips').addEventListener('click', (e) => {
+    const b = e.target.closest('.chip');
+    if (!b) return;
+    pick(b.dataset.name);
+    renderWelcome();
+    const nb = $(`.chip[data-name="${CSS.escape(b.dataset.name)}"]`);
+    if (nb) nb.focus();
+  });
+  $('#welcomeInput').addEventListener('input', () => { $('#welcomeAddBtn').hidden = !$('#welcomeInput').value.trim(); });
+  $('#welcomeAdd').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const v = $('#welcomeInput').value.trim();
+    if (!v) return;
+    if (!SUGGESTIONS.includes(v) && !customs.includes(v)) customs.push(v);
+    if (!picks.includes(v)) pick(v);
+    $('#welcomeInput').value = '';
+    renderWelcome();
+  });
+  $('#startBtn').addEventListener('click', () => {
+    if (!picks.length) return;
+    state = { ...freshState(), habits: picks.map((name, i) => ({ id: uid(), name, color: COLOR_KEYS[i % COLOR_KEYS.length] })), welcomed: true };
+    ensureSession();
+    save();
+    go('today');
+  });
+  $('#demoBtn').addEventListener('click', () => {
+    state = seed();
+    ensureSession();
+    save();
+    go('today');
+  });
+
   // ---------- navigation ----------
-  const VIEWS = ['today', 'records', 'settings'];
+  const VIEWS = ['welcome', 'today', 'records', 'settings'];
   let current = null;
   function go(v) {
-    if (!VIEWS.includes(v)) v = 'today';
+    if (!state.welcomed) v = 'welcome';
+    else if (!VIEWS.includes(v) || v === 'welcome') v = 'today';
     const prev = current;
     current = v;
     VIEWS.forEach((n) => { $(`#view-${n}`).hidden = n !== v; });
@@ -934,7 +1024,7 @@ button:disabled { cursor: default; }
         el.animate([{ opacity: 0, transform: `translateX(${dir * 20}px)` }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.8,.2,1)' });
       }
     }
-    const hash = v === 'today' ? '' : `#${v}`;
+    const hash = v === 'today' || v === 'welcome' ? '' : `#${v}`;
     if (location.hash !== hash) history.replaceState(null, '', hash || location.pathname + location.search);
     render();
   }
@@ -942,7 +1032,8 @@ button:disabled { cursor: default; }
   window.addEventListener('hashchange', () => go(location.hash.slice(1)));
 
   function render() {
-    if (current === 'today') renderToday();
+    if (current === 'welcome') renderWelcome();
+    else if (current === 'today') renderToday();
     else if (current === 'records') renderRecords();
     else if (current === 'settings') renderSettings();
   }

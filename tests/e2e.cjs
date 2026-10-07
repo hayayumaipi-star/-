@@ -81,6 +81,43 @@ async function test(name, fn) {
 
 // ---------- tests ----------
 async function run() {
+  await test('first run: pick habits, add your own, and start', async () => {
+    const page = await open();
+    assert.ok(await page.isVisible('#view-welcome'));
+    assert.ok(await page.isDisabled('#startBtn'));
+    await page.click('.chip[data-name="ストレッチ"]');
+    await page.click('.chip[data-name="水を1杯のむ"]');
+    await page.fill('#welcomeInput', 'ギターを5分');
+    await page.press('#welcomeInput', 'Enter');
+    await page.click('.chip[data-name="ストレッチ"]');
+    await page.click('.chip[data-name="ストレッチ"]');
+    assert.equal(await text(page, '#startBtn'), '3つではじめる');
+    await page.click('#startBtn'); await page.waitForTimeout(300);
+    assert.ok(await page.isVisible('#view-today'));
+    assert.equal(await text(page, '#count'), 'あと3枚');
+    assert.ok(await page.isVisible('#hint'));
+    const s = await stored(page);
+    assert.deepEqual(s.habits.map((h) => h.name), ['水を1杯のむ', 'ギターを5分', 'ストレッチ']);
+    assert.equal(s.sample, false);
+    await page.reload(); await page.waitForTimeout(250);
+    assert.ok(await page.isVisible('#view-today'), 'welcome shown again after starting');
+  });
+
+  await test('first run: try it with sample records', async () => {
+    const page = await open();
+    await page.click('#demoBtn'); await page.waitForTimeout(300);
+    assert.equal(await text(page, '#count'), 'あと5枚');
+    assert.equal(await text(page, '#streakNum'), '2');
+    assert.equal((await stored(page)).sample, true);
+  });
+
+  await test('older saves skip the welcome screen', async () => {
+    const state = makeState();
+    delete state.welcomed;
+    const page = await open({ state });
+    assert.ok(await page.isVisible('#view-today'));
+  });
+
   await test('right = done, left = missed; finish shows the achievement rate', async () => {
     const page = await open({ state: makeState() });
     assert.equal(await text(page, '#count'), 'あと4枚');
