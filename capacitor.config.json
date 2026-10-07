@@ -1,0 +1,14 @@
+{
+  "appId": "jp.swipeshukan.app",
+  "appName": "スワイプ習慣",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#F4F5F3"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">スワイプ習慣</string>
+    <string name="title_activity_main">スワイプ習慣</string>
+    <string name="package_name">jp.swipeshukan.app</string>
+    <string name="custom_url_scheme">jp.swipeshukan.app</string>
+</resources>

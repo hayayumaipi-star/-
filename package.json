@@ -1,13 +1,22 @@
 {
-  "name": "speedtask",
+  "name": "swipe-habit",
   "version": "1.0.0",
   "private": true,
   "description": "習慣は、スワイプで終わらせる。",
   "scripts": {
     "start": "npx --yes http-server -p 8080 -c-1 .",
-    "test": "node tests/e2e.cjs"
+    "test": "node tests/e2e.cjs",
+    "build:web": "node scripts/build-web.cjs",
+    "sync:android": "npm run build:web && npx cap sync android",
+    "icons": "node scripts/icons.cjs"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
     "playwright": "1.56.1"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.5.2"
   }
 }
