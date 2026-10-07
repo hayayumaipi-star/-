@@ -207,6 +207,34 @@ async function run() {
     assert.deepEqual(s.days[y].done, ['h1']);
   });
 
+  // A session where h1 was swiped `agoMs` ago, after `activeMs` of swiping.
+  function midSession(agoMs, activeMs) {
+    const t = dayKey(0), now = Date.now();
+    const state = makeState({ days: { [t]: { done: ['h1'], skipped: [], seconds: null, total: 4, finished: false, complete: false } } });
+    state.session = { date: t, queue: ['h2', 'h3', 'h4'], history: [{ type: 'done', id: 'h1', ms: activeMs, prevLastAt: null }],
+      startedAt: now - agoMs - activeMs, finishedAt: null, activeMs, lastAt: now - agoMs };
+    return state;
+  }
+
+  await test('time away between swipes is not counted', async () => {
+    const page = await open({ state: midSession(5 * 60 * 1000, 3000) });
+    assert.equal(await page.getAttribute('#clock', 'data-mode'), 'paused');
+    assert.equal(await text(page, '#clock'), '3.00秒');
+    await press(page, 'ArrowRight', 'ArrowRight', 'ArrowRight');
+    const secs = (await stored(page)).days[dayKey(0)].seconds;
+    assert.ok(secs >= 3 && secs < 5, `expected about 3s, got ${secs}`);
+  });
+
+  await test('time within a sitting is counted, and undo takes it back', async () => {
+    const page = await open({ state: midSession(10 * 1000, 2000) });
+    assert.equal(await page.getAttribute('#clock', 'data-mode'), 'running');
+    await press(page, 'ArrowRight');
+    const active = (await stored(page)).session.activeMs;
+    assert.ok(active >= 12000 && active < 14000, `expected about 12s, got ${active}`);
+    await page.click('#snackAct'); await page.waitForTimeout(200);
+    assert.equal((await stored(page)).session.activeMs, 2000);
+  });
+
   await test('no horizontal overflow on a small phone, light and dark', async () => {
     for (const scheme of ['light', 'dark']) {
       for (const hash of ['', '#records', '#settings']) {

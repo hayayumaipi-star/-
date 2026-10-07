@@ -88,7 +88,7 @@ button:disabled { cursor: default; }
 
 .clock { text-align: center; font-weight: 900; font-size: 44px; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; padding-top: 2px; transition: color .3s; }
 .clock small { font-size: 15px; font-weight: 800; letter-spacing: 0; margin-left: 2px; }
-.clock[data-mode="idle"], .clock[data-mode="held"] { color: var(--faint); }
+.clock[data-mode="idle"], .clock[data-mode="held"], .clock[data-mode="paused"] { color: var(--faint); }
 
 .stage { position: relative; flex: 1; min-height: 260px; }
 .stack { position: absolute; inset: 20px 0 4px; margin: auto; width: min(100%, 340px); max-height: 460px; touch-action: none; }
@@ -350,6 +350,8 @@ button:disabled { cursor: default; }
   const COLOR_KEYS = Object.keys(COLORS);
   const STORE_KEY = 'speedtask.v1';
   const MAX_HABITS = 12;
+  // A pause longer than this between swipes means you stepped away; that time isn't counted.
+  const GAP_MS = 60 * 1000;
   const DOW = ['日', '月', '火', '水', '木', '金', '土'];
   const $ = (s) => document.querySelector(s);
   const pad = (n) => String(n).padStart(2, '0');
@@ -410,7 +412,10 @@ button:disabled { cursor: default; }
         if (d.finished === undefined) d.finished = !!d.complete;
       });
       s.habits.forEach((h) => { if (!COLORS[h.color]) h.color = 'blue'; });
-      if (s.session) s.session.history = (s.session.history || []).filter((a) => ['done', 'pass', 'retry'].includes(a.type));
+      if (s.session) {
+        s.session.history = (s.session.history || []).filter((a) => ['done', 'pass', 'retry'].includes(a.type));
+        if (typeof s.session.activeMs !== 'number') { s.session.activeMs = 0; s.session.lastAt = null; }
+      }
       if (s.onboarded === undefined) s.onboarded = true;
       return s;
     } catch (e) { return null; }
@@ -425,7 +430,7 @@ button:disabled { cursor: default; }
 
   function ensureSession() {
     const t = todayKey();
-    if (!state.session || state.session.date !== t) state.session = { date: t, queue: [], history: [], startedAt: null, finishedAt: null };
+    if (!state.session || state.session.date !== t) state.session = { date: t, queue: [], history: [], startedAt: null, finishedAt: null, activeMs: 0, lastAt: null };
     if (!state.days[t]) state.days[t] = newDay();
     const s = state.session, day = state.days[t];
     const ids = new Set(state.habits.map((h) => h.id));
@@ -446,7 +451,7 @@ button:disabled { cursor: default; }
     day.complete = day.finished && day.done.length === day.total;
     if (day.finished && !s.finishedAt) {
       s.finishedAt = Date.now();
-      if (day.seconds == null && s.startedAt) day.seconds = +((s.finishedAt - s.startedAt) / 1000).toFixed(2);
+      if (day.seconds == null && s.startedAt) day.seconds = +((s.activeMs || 0) / 1000).toFixed(2);
     }
     if (!day.finished) s.finishedAt = null;
   }
@@ -486,9 +491,15 @@ button:disabled { cursor: default; }
     const s = state.session;
     if (!s.queue.length) return;
     const id = s.queue.shift();
-    if (!s.startedAt) s.startedAt = startHint || Date.now();
+    // Count the time since the previous swipe, or since the finger touched the card when starting a new sitting.
+    const now = Date.now();
+    const from = s.lastAt && now - s.lastAt <= GAP_MS ? s.lastAt : Math.min(startHint || now, now);
+    const ms = now - from;
+    s.history.push({ type, id, ms, prevLastAt: s.lastAt });
+    s.activeMs = (s.activeMs || 0) + ms;
+    s.lastAt = now;
+    if (!s.startedAt) s.startedAt = from;
     (type === 'done' ? today().done : today().skipped).push(id);
-    s.history.push({ type, id });
     state.onboarded = true;
     refreshComplete();
     save();
@@ -517,10 +528,12 @@ button:disabled { cursor: default; }
       day.skipped = day.skipped.filter((x) => x !== a.id);
       s.queue = s.queue.filter((x) => x !== a.id);
       s.queue.unshift(a.id);
+      s.activeMs = Math.max(0, (s.activeMs || 0) - (a.ms || 0));
+      s.lastAt = a.prevLastAt ?? null;
       // Undoing the very first finish reopens the clock; after a redo the first time is kept.
       if (wasFinished && !s.history.some((h) => h.type === 'retry')) day.seconds = null;
     }
-    if (!s.history.length) { s.startedAt = null; day.seconds = null; }
+    if (!s.history.length) { s.startedAt = null; s.activeMs = 0; s.lastAt = null; day.seconds = null; }
     refreshComplete();
     save();
     hideSnack();
@@ -628,7 +641,15 @@ button:disabled { cursor: default; }
     if (clock.hidden) return;
     let secs = 0, mode = 'idle';
     if (retrying()) { secs = day.seconds; mode = 'held'; }
-    else if (s.startedAt) { secs = (Date.now() - s.startedAt) / 1000; mode = 'running'; }
+    else {
+      // Runs while you're swiping; pauses (faint) once you step away for longer than GAP_MS.
+      const now = Date.now(), base = s.activeMs || 0;
+      let live = 0;
+      if (s.lastAt && now - s.lastAt <= GAP_MS) live = now - s.lastAt;
+      else if (drag) live = now - drag.wall;
+      secs = (base + live) / 1000;
+      mode = live ? 'running' : base ? 'paused' : 'idle';
+    }
     clock.innerHTML = fmtSecs(secs);
     clock.dataset.mode = mode;
     if (mode === 'running' && current === 'today' && !document.hidden) raf = requestAnimationFrame(tick);
@@ -677,6 +698,7 @@ button:disabled { cursor: default; }
     drag = { el, x: e.clientX, y: e.clientY, wall: Date.now(), dx: 0, dy: 0, lx: e.clientX, lt: performance.now(), v: 0 };
     el.setPointerCapture(e.pointerId);
     el.classList.add('dragging');
+    tick();
   });
   stack.addEventListener('pointermove', (e) => {
     if (!drag) return;
@@ -700,6 +722,7 @@ button:disabled { cursor: default; }
     el.style.transform = '';
     el.style.setProperty('--ok', 0);
     el.style.setProperty('--no', 0);
+    tick();
   }
   stack.addEventListener('pointerup', endDrag);
   stack.addEventListener('pointercancel', endDrag);
