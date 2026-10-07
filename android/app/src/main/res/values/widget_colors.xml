@@ -3,5 +3,6 @@
     <color name="widget_background">#FFFFFF</color>
     <color name="widget_ink">#141716</color>
     <color name="widget_sub">#6C7470</color>
+    <color name="widget_line">#E3E6E3</color>
     <color name="widget_accent">#0A7350</color>
 </resources>

@@ -563,7 +563,39 @@ button:disabled { cursor: default; }
     else if (day.finished) { big = `${Math.round((nDone / total) * 100)}%`; small = nMiss ? `${total}つ中${nDone}つ、できた` : '全部できた'; }
     else if (nDone + nMiss) { big = `あと${s.queue.length}枚`; small = `${nDone}つできた`; }
     else { big = `${total}枚`; small = 'スワイプではじめる'; }
-    Promise.resolve(bridge.update({ date: s.date, big, small, streak: overallStreak() })).catch(() => {});
+    // The widget shows the top card with done / missed buttons, so it gets the whole queue too.
+    // streakDone is the streak once today is finished, for when the widget finishes the day itself.
+    const streak = overallStreak();
+    const queue = s.queue.map((id) => { const h = habitById(id); return { id, name: h.name, color: h.color }; });
+    Promise.resolve(bridge.update({
+      date: s.date, big, small, streak, streakDone: recorded(day) ? streak : streak + 1,
+      queue: JSON.stringify(queue), total, done: nDone, missed: nMiss,
+    })).catch(() => {});
+  }
+  // Records made on the widget while the app was closed wait on the Android side until the app opens.
+  async function applyWidgetActions() {
+    const bridge = native && cap.Plugins && cap.Plugins.WidgetBridge;
+    if (!bridge || !bridge.takePending) return;
+    let actions = [];
+    try { actions = JSON.parse((await bridge.takePending()).actions || '[]'); } catch (e) { return; }
+    if (!actions.length) return;
+    checkDay();
+    for (const a of actions) {
+      if (a.date === state.session.date) act(a.type === 'done' ? 'done' : 'pass', a.id);
+      else recordPastWidgetAction(a);
+    }
+    save();
+    render();
+  }
+  // A widget record made late on a day that has since ended still belongs to that day.
+  function recordPastWidgetAction(a) {
+    const d = state.days[a.date];
+    if (!d || !habitById(a.id) || judged(d, a.id)) return;
+    (a.type === 'done' ? d.done : d.skipped).push(a.id);
+    d.total = habitsFor(a.date).length;
+    d.finished = habitsFor(a.date).every((h) => judged(d, h.id));
+    d.complete = d.finished && d.done.length === d.total;
+    if (d.finished) d.ended = true;
   }
 
   let state = load() || freshState();
@@ -660,10 +692,10 @@ button:disabled { cursor: default; }
   }
 
   // ---------- actions ----------
-  function act(type) {
+  function act(type, id = state.session.queue[0]) {
     const s = state.session;
-    if (!s.queue.length) return;
-    const id = s.queue.shift();
+    if (!s.queue.includes(id)) return;
+    s.queue = s.queue.filter((x) => x !== id);
     s.history.push({ type, id });
     (type === 'done' ? today().done : today().skipped).push(id);
     state.onboarded = true;
@@ -1321,8 +1353,10 @@ button:disabled { cursor: default; }
     try {
       Promise.resolve(cap.Plugins.App.getLaunchUrl()).then((r) => openFromLink(r && r.url)).catch(() => {});
       cap.Plugins.App.addListener('appUrlOpen', (e) => openFromLink(e && e.url));
+      cap.Plugins.App.addListener('resume', applyWidgetActions);
     } catch (e) { /* older app shell without links */ }
   }
+  applyWidgetActions();
 
   // Inside the Android app (Capacitor) the system back button moves up to home, and leaves from home.
   if (native && cap.Plugins && cap.Plugins.App) {

@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="widget_name">今日の習慣</string>
-    <string name="widget_description">今日の進み具合と連続日数。タップするとカードが開きます。</string>
+    <string name="widget_description">今日のカードを、やった・できなかったで片付けられます。</string>
     <string name="widget_label">今日</string>
+    <string name="widget_left">あと%1$d枚</string>
+    <string name="widget_some_done">%1$dつ中%2$dつ、できた</string>
+    <string name="widget_all_done">全部できた</string>
+    <string name="widget_miss_button">✕ できなかった</string>
+    <string name="widget_done_button">✓ やった</string>
     <string name="widget_stale_big">今日の習慣</string>
     <string name="widget_stale_small">タップしてはじめる</string>
 </resources>

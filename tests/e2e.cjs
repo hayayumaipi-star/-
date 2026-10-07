@@ -461,22 +461,51 @@ async function run() {
   });
 
   // A stand-in for the Android app shell: records widget updates and serves a launch link.
-  const nativeShell = (launchUrl) => `
+  const nativeShell = (launchUrl, pending = []) => `
     window.__widget = [];
+    window.__pending = ${JSON.stringify(JSON.stringify(pending))};
     window.Capacitor = { isNativePlatform: () => true, Plugins: {
       App: { addListener: () => {}, exitApp: () => {}, getLaunchUrl: async () => (${JSON.stringify(launchUrl)} ? { url: ${JSON.stringify(launchUrl)} } : undefined) },
-      WidgetBridge: { update: async (d) => { window.__widget.push(d); } },
+      WidgetBridge: {
+        update: async (d) => { window.__widget.push(d); },
+        takePending: async () => { const actions = window.__pending; window.__pending = '[]'; return { actions }; },
+      },
     } };`;
+  const pick = (w, keys) => Object.fromEntries(keys.map((k) => [k, w[k]]));
 
   await test('widget: gets today\'s summary after every change', async () => {
     const page = await open({ state: makeState({ days: { [dayKey(-1)]: pastDay(4, [0]) } }), hash: '', init: nativeShell(null) });
-    const last = () => page.evaluate(() => window.__widget[window.__widget.length - 1]);
-    assert.deepEqual(await last(), { date: dayKey(0), big: '4枚', small: 'スワイプではじめる', streak: 1 });
+    const keys = ['date', 'big', 'small', 'streak', 'streakDone', 'total', 'done', 'missed'];
+    const last = async () => { const w = await page.evaluate(() => window.__widget[window.__widget.length - 1]); return { ...pick(w, keys), queue: JSON.parse(w.queue) }; };
+    let w = await last();
+    assert.deepEqual(pick(w, keys), { date: dayKey(0), big: '4枚', small: 'スワイプではじめる', streak: 1, streakDone: 2, total: 4, done: 0, missed: 0 });
+    assert.deepEqual(w.queue[0], { id: 'h1', name: 'A', color: 'mint' });
     await page.click('.hero-start'); await page.waitForTimeout(200);
     await press(page, 'ArrowRight');
-    assert.deepEqual(await last(), { date: dayKey(0), big: 'あと3枚', small: '1つできた', streak: 1 });
+    w = await last();
+    assert.deepEqual(pick(w, ['big', 'small', 'done']), { big: 'あと3枚', small: '1つできた', done: 1 });
+    assert.deepEqual(w.queue.map((c) => c.id), ['h2', 'h3', 'h4']);
     await press(page, 'ArrowLeft', 'ArrowRight', 'ArrowRight');
-    assert.deepEqual(await last(), { date: dayKey(0), big: '75%', small: '4つ中3つ、できた', streak: 2 });
+    w = await last();
+    assert.deepEqual(pick(w, ['big', 'small', 'streak', 'streakDone', 'missed']), { big: '75%', small: '4つ中3つ、できた', streak: 2, streakDone: 2, missed: 1 });
+    assert.deepEqual(w.queue, []);
+  });
+
+  await test('widget: records made on the widget are applied when the app opens', async () => {
+    const days = { [dayKey(-1)]: { done: ['h1'], skipped: [], total: 4, finished: false, ended: false, complete: false } };
+    const pending = [
+      { date: dayKey(0), id: 'h1', type: 'done' },
+      { date: dayKey(0), id: 'h2', type: 'pass' },
+      { date: dayKey(-1), id: 'h2', type: 'done' },
+    ];
+    const page = await open({ state: makeState({ days }), hash: '', init: nativeShell(null, pending) });
+    await page.waitForTimeout(300);
+    assert.equal(await text(page, '#todayMeta'), '1/4');
+    assert.equal(await text(page, '#todayRows [data-habit="h2"] .state'), 'できなかった');
+    assert.equal(await text(page, '.hero-start .hero-num'), '2枚');
+    const s = await stored(page);
+    assert.deepEqual(s.days[dayKey(-1)].done, ['h1', 'h2'], "yesterday's late widget record belongs to yesterday");
+    assert.equal(await page.evaluate(() => window.__pending), '[]');
   });
 
   await test('widget: a rest day says so', async () => {
