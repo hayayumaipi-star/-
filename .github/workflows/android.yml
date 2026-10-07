@@ -70,6 +70,13 @@ jobs:
           name: swipe-habit-play-aab-${{ github.run_number }}
           path: android/app/build/outputs/bundle/release/app-release.aab
 
-      - name: Note when the bundle was skipped
+      # Without the real key, still prove the signed release bundle builds, using a throwaway key.
+      - name: Check the signed bundle with a throwaway key
         if: env.HAS_KEY != 'true'
-        run: echo "::notice::ANDROID_KEYSTORE_PASSWORD is not set, so only the test APK was built. See docs/RELEASE.md."
+        working-directory: android
+        run: |
+          keytool -genkeypair -storetype PKCS12 -keystore "$RUNNER_TEMP/throwaway.jks" -alias upload -keyalg RSA -keysize 2048 \
+            -validity 1 -storepass throwaway -keypass throwaway -dname "CN=throwaway"
+          ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/throwaway.jks" ANDROID_KEYSTORE_PASSWORD=throwaway ./gradlew --no-daemon bundleRelease
+          jarsigner -verify app/build/outputs/bundle/release/app-release.aab | tail -1
+          echo "::notice::ANDROID_KEYSTORE_PASSWORD is not set, so the Play bundle was only checked with a throwaway key and not kept. See docs/RELEASE.md."
