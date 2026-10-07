@@ -1039,6 +1039,13 @@ button:disabled { cursor: default; }
     render();
     snack('すべての記録を消しました');
   });
+  // Inside the Claude artifact viewer, files are handed over through its downloads capability
+  // (the viewer confirms each save). Elsewhere window.claude is absent and this stays null.
+  let downloadsCap = null;
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('downloads').then((d) => { downloadsCap = d; }).catch(() => {});
+  }
+
   // ---------- share ----------
   function result() {
     const day = today(), total = day.total, nDone = day.done.length;
@@ -1131,20 +1138,38 @@ button:disabled { cursor: default; }
   }
   async function shareResult() {
     const r = result(), text = resultText(r);
-    if (!navigator.share) { copyResult(text); return; }
-    const file = shareCache.key === JSON.stringify(r) ? shareCache.file : null;
-    try {
-      if (file && navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], text });
-      else await navigator.share({ text });
-    } catch (e) {
-      if (e.name !== 'AbortError') copyResult(text);
+    if (navigator.share) {
+      const file = shareCache.key === JSON.stringify(r) ? shareCache.file : null;
+      try {
+        if (file && navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], text });
+        else await navigator.share({ text });
+        return;
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+      }
     }
+    await copyResult(text);
+    if (!downloadsCap) return;
+    try {
+      await downloadsCap.save({ filename: `speedtask-${r.date}.png`, data: await drawShareImage(r) });
+      snack('画像を保存しました。テキストはコピー済みです');
+    } catch (e) { /* declined or unavailable: the text is already copied */ }
   }
 
   // ---------- backup ----------
   async function exportBackup() {
     const name = `speedtask-${todayKey()}.json`;
     const json = JSON.stringify({ app: 'SpeedTask', version: 1, exportedAt: new Date().toISOString(), state }, null, 2);
+    if (downloadsCap) {
+      try {
+        await downloadsCap.save({ filename: name, data: json });
+        snack('バックアップを書き出しました');
+      } catch (e) {
+        if (e && e.code === 'rate_limited') snack('少し待ってから、もう一度お試しください');
+        else if (!e || e.code !== 'declined') snack('書き出せませんでした');
+      }
+      return;
+    }
     const file = new File([json], name, { type: 'application/json' });
     try {
       if (navigator.canShare && navigator.canShare({ files: [file] })) {

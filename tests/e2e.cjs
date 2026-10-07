@@ -381,6 +381,24 @@ async function run() {
     assert.equal(await text(page, '#snackText'), '結果をコピーしました');
   });
 
+  await test('inside the Claude viewer, backup and share go through its downloads capability', async () => {
+    const init = () => {
+      window.__saved = [];
+      window.claude = { use: async (name) => (name === 'downloads' ? Object.freeze({
+        save: async ({ filename, data }) => { window.__saved.push({ filename, size: typeof data === 'string' ? data.length : data.size }); return { status: 'saved' }; },
+      }) : null) };
+    };
+    const page = await open({ state: makeState(), init, permissions: ['clipboard-read', 'clipboard-write'] });
+    await press(page, 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowLeft');
+    await page.click('#shareBtn'); await page.waitForTimeout(600);
+    await page.click('[data-go="records"]'); await page.click('.link[data-go="settings"]');
+    await page.click('#exportBtn'); await page.waitForTimeout(200);
+    const saved = await page.evaluate(() => window.__saved);
+    assert.deepEqual(saved.map((x) => x.filename), [`speedtask-${dayKey(0)}.png`, `speedtask-${dayKey(0)}.json`]);
+    assert.ok(saved.every((x) => x.size > 100));
+    assert.equal(await text(page, '#snackText'), 'バックアップを書き出しました');
+  });
+
   await test('no horizontal overflow on a small phone, light and dark', async () => {
     for (const scheme of ['light', 'dark']) {
       for (const hash of ['', '#records', '#settings']) {
