@@ -124,6 +124,14 @@ async function run() {
     assert.ok(await page.isVisible('#view-home'));
   });
 
+  await test('the finish screens have no share button', async () => {
+    const page = await open({ state: makeState() });
+    await press(page, 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight');
+    assert.equal(await page.locator('#done button:visible').count(), 0);
+    await page.click('#view-today [data-go="home"]'); await page.waitForTimeout(300);
+    assert.equal(await page.locator('#hero button').count(), 0);
+  });
+
   await test('home: start from the hero, finish, and redo from home', async () => {
     const page = await open({ state: makeState(), hash: '' });
     assert.equal(await text(page, '#todayMeta'), '0/4');
@@ -417,31 +425,7 @@ async function run() {
     assert.equal((await stored(page)).habits.length, 4);
   });
 
-  await test('share: sends an image and text through the share sheet', async () => {
-    const init = () => {
-      navigator.canShare = (d) => !!(d && d.files);
-      navigator.share = async (d) => { window.__shared = { text: d.text, files: (d.files || []).map((f) => ({ name: f.name, type: f.type, size: f.size })) }; };
-    };
-    const page = await open({ state: makeState({ days: { [dayKey(-1)]: pastDay(4, [0]) } }), init });
-    await press(page, 'ArrowRight', 'ArrowRight', 'ArrowLeft', 'ArrowRight');
-    await page.waitForTimeout(800);
-    await page.click('#shareBtn'); await page.waitForTimeout(200);
-    const shared = await page.evaluate(() => window.__shared);
-    assert.equal(shared.text, '今日の習慣、4つ中3つできた（75%）。🔥2日連続 #SpeedTask');
-    assert.equal(shared.files.length, 1);
-    assert.equal(shared.files[0].type, 'image/png');
-    assert.ok(shared.files[0].size > 10000, `image too small: ${shared.files[0].size}`);
-  });
-
-  await test('share: copies the result where there is no share sheet', async () => {
-    const page = await open({ state: makeState(), permissions: ['clipboard-read', 'clipboard-write'] });
-    await press(page, 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight');
-    await page.click('#shareBtn'); await page.waitForTimeout(200);
-    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), '今日の習慣、4つ全部できた（100%）。🔥1日連続 #SpeedTask');
-    assert.equal(await text(page, '#snackText'), '結果をコピーしました');
-  });
-
-  await test('inside the Claude viewer, backup and share go through its downloads capability', async () => {
+  await test('inside the Claude viewer, the backup goes through its downloads capability', async () => {
     const init = () => {
       window.__saved = [];
       window.claude = { use: async (name) => (name === 'downloads' ? Object.freeze({
@@ -450,11 +434,10 @@ async function run() {
     };
     const page = await open({ state: makeState(), init, permissions: ['clipboard-read', 'clipboard-write'] });
     await press(page, 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowLeft');
-    await page.click('#shareBtn'); await page.waitForTimeout(600);
     await page.click('#view-today [data-go="home"]'); await page.click('#view-home [data-go="settings"]');
     await page.click('#exportBtn'); await page.waitForTimeout(200);
     const saved = await page.evaluate(() => window.__saved);
-    assert.deepEqual(saved.map((x) => x.filename), [`speedtask-${dayKey(0)}.png`, `speedtask-${dayKey(0)}.json`]);
+    assert.deepEqual(saved.map((x) => x.filename), [`speedtask-${dayKey(0)}.json`]);
     assert.ok(saved.every((x) => x.size > 100));
     assert.equal(await text(page, '#snackText'), 'バックアップを書き出しました');
   });
