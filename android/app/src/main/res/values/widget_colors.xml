@@ -5,4 +5,6 @@
     <color name="widget_sub">#6C7470</color>
     <color name="widget_line">#E3E6E3</color>
     <color name="widget_accent">#0A7350</color>
+    <color name="widget_progress">#1FCB8F</color>
+    <color name="widget_card_ink">#E60C0E0D</color>
 </resources>

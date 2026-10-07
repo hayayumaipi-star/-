@@ -8,6 +8,12 @@
     <string name="widget_all_done">全部できた</string>
     <string name="widget_miss_button">✕ できなかった</string>
     <string name="widget_done_button">✓ やった</string>
+    <string name="widget_miss_icon">✕</string>
+    <string name="widget_done_icon">✓</string>
+    <string name="widget_miss_description">%1$s：できなかった</string>
+    <string name="widget_done_description">%1$s：やった</string>
+    <string name="widget_undo">↶ 戻す</string>
+    <string name="widget_undo_description">さっきの記録を取り消す</string>
     <string name="widget_stale_big">今日の習慣</string>
     <string name="widget_stale_small">タップしてはじめる</string>
 </resources>
