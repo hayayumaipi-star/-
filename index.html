@@ -21,7 +21,7 @@
 <body>
 <!--APP-START-->
 <style>
-/* Layout: one quiet phone column. "今日" is a card stack and a clock; "記録" is three numbers, a month, and a list. Nothing else. */
+/* Layout: one quiet phone column. "今日" is a card stack; "記録" is three numbers, a month, and a list. Nothing else. */
 :root {
   --bg: #F4F5F3;
   --surface: #FFFFFF;
@@ -86,9 +86,6 @@ button:disabled { cursor: default; }
 .count b { font-size: 22px; font-weight: 900; color: var(--ink); line-height: 1; font-variant-numeric: tabular-nums; }
 .streak { justify-self: end; padding-right: 8px; display: flex; align-items: center; gap: 3px; font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
 
-.clock { text-align: center; font-weight: 900; font-size: 44px; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; padding-top: 2px; transition: color .3s; }
-.clock small { font-size: 15px; font-weight: 800; letter-spacing: 0; margin-left: 2px; }
-.clock[data-mode="idle"], .clock[data-mode="held"], .clock[data-mode="paused"] { color: var(--faint); }
 
 .stage { position: relative; flex: 1; min-height: 260px; }
 .stack { position: absolute; inset: 20px 0 4px; margin: auto; width: min(100%, 340px); max-height: 460px; touch-action: none; }
@@ -282,7 +279,6 @@ button:disabled { cursor: default; }
 .start-btn:disabled { opacity: .25; }
 
 @media (max-height: 680px) {
-  .clock { font-size: 34px; }
   .foot { height: 56px; }
   .done-pct { font-size: 56px; }
   .week { margin-top: 20px; }
@@ -349,7 +345,6 @@ button:disabled { cursor: default; }
       <div class="count" id="count" aria-live="polite"></div>
       <div class="streak" aria-label="連続日数"><svg class="flame" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flame"/></svg><span id="streakNum">0</span></div>
     </header>
-    <div class="clock" id="clock" data-mode="idle" aria-hidden="true"></div>
     <section class="stage">
       <div class="stack" id="stack"></div>
       <div class="finish" id="done" hidden>
@@ -622,7 +617,6 @@ button:disabled { cursor: default; }
     }
     if (!day.finished) s.finishedAt = null;
   }
-  const retrying = () => !today().finished && today().seconds != null;
   // A day counts toward the streak once every card was swiped, even while misses are being redone.
   const recorded = (d) => !!d && (d.finished || d.seconds != null);
 
@@ -706,7 +700,7 @@ button:disabled { cursor: default; }
       s.queue.unshift(a.id);
       s.activeMs = Math.max(0, (s.activeMs || 0) - (a.ms || 0));
       s.lastAt = a.prevLastAt ?? null;
-      // Undoing the very first finish reopens the clock; after a redo the first time is kept.
+      // Undoing the very first finish reopens the timing; after a redo the first time is kept.
       if (wasFinished && !s.history.some((h) => h.type === 'retry')) day.seconds = null;
     }
     if (!s.history.length) { s.startedAt = null; s.activeMs = 0; s.lastAt = null; day.seconds = null; }
@@ -791,7 +785,6 @@ button:disabled { cursor: default; }
       $('#week').innerHTML = weekHTML();
       if (appearing && booted && !reduceMotion.matches) { done.classList.remove('celebrate'); void done.offsetWidth; done.classList.add('celebrate'); }
     }
-    tick();
   }
 
   // The last 7 days as dots: full = everything done, ring = finished with misses, outline = rest day.
@@ -813,27 +806,6 @@ button:disabled { cursor: default; }
     return '';
   }
   let booted = false;
-  let raf = 0;
-  function tick() {
-    cancelAnimationFrame(raf);
-    const s = state.session, day = today(), clock = $('#clock');
-    clock.hidden = !day.total || day.finished;
-    if (clock.hidden) return;
-    let secs = 0, mode = 'idle';
-    if (retrying()) { secs = day.seconds; mode = 'held'; }
-    else {
-      // Runs while you're swiping; pauses (faint) once you step away for longer than GAP_MS.
-      const now = Date.now(), base = s.activeMs || 0;
-      let live = 0;
-      if (s.lastAt && now - s.lastAt <= GAP_MS) live = now - s.lastAt;
-      else if (drag) live = now - drag.wall;
-      secs = (base + live) / 1000;
-      mode = live ? 'running' : base ? 'paused' : 'idle';
-    }
-    clock.innerHTML = fmtSecs(secs);
-    clock.dataset.mode = mode;
-    if (mode === 'running' && current === 'today' && !document.hidden) raf = requestAnimationFrame(tick);
-  }
 
   // ---------- feedback ----------
   let snackTimer = 0, snackFn = null;
@@ -878,7 +850,6 @@ button:disabled { cursor: default; }
     drag = { el, x: e.clientX, y: e.clientY, wall: Date.now(), dx: 0, dy: 0, lx: e.clientX, lt: performance.now(), v: 0 };
     el.setPointerCapture(e.pointerId);
     el.classList.add('dragging');
-    tick();
   });
   stack.addEventListener('pointermove', (e) => {
     if (!drag) return;
@@ -902,7 +873,6 @@ button:disabled { cursor: default; }
     el.style.transform = '';
     el.style.setProperty('--ok', 0);
     el.style.setProperty('--no', 0);
-    tick();
   }
   stack.addEventListener('pointerup', endDrag);
   stack.addEventListener('pointercancel', endDrag);
@@ -1347,7 +1317,7 @@ button:disabled { cursor: default; }
     save();
     render();
   }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { checkDay(); tick(); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDay(); });
   setInterval(checkDay, 60000);
 
   ensureSession();

@@ -124,6 +124,12 @@ async function run() {
     assert.ok(await page.isVisible('#view-home'));
   });
 
+  await test('the swipe screen shows no timer', async () => {
+    const page = await open({ state: makeState() });
+    await press(page, 'ArrowRight');
+    assert.equal(await page.locator('#view-today').innerText().then((t) => /\d+\.\d{2}秒/.test(t)), false);
+  });
+
   await test('the finish screens have no share button', async () => {
     const page = await open({ state: makeState() });
     await press(page, 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight');
@@ -325,8 +331,6 @@ async function run() {
 
   await test('time away between swipes is not counted', async () => {
     const page = await open({ state: midSession(5 * 60 * 1000, 3000) });
-    assert.equal(await page.getAttribute('#clock', 'data-mode'), 'paused');
-    assert.equal(await text(page, '#clock'), '3.00秒');
     await press(page, 'ArrowRight', 'ArrowRight', 'ArrowRight');
     const secs = (await stored(page)).days[dayKey(0)].seconds;
     assert.ok(secs >= 3 && secs < 5, `expected about 3s, got ${secs}`);
@@ -334,7 +338,6 @@ async function run() {
 
   await test('time within a sitting is counted, and undo takes it back', async () => {
     const page = await open({ state: midSession(10 * 1000, 2000) });
-    assert.equal(await page.getAttribute('#clock', 'data-mode'), 'running');
     await press(page, 'ArrowRight');
     const active = (await stored(page)).session.activeMs;
     assert.ok(active >= 12000 && active < 14000, `expected about 12s, got ${active}`);
@@ -359,7 +362,6 @@ async function run() {
     assert.ok(await page.isVisible('#rest'));
     assert.equal(await text(page, '#restNext'), '明日は4つ');
     assert.equal(await page.locator('.card').count(), 0);
-    assert.ok(await page.isHidden('#clock'));
     assert.equal(await text(page, '#streakNum'), '1');
   });
 
