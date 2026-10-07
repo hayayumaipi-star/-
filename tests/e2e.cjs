@@ -48,8 +48,9 @@ let browser, server, base;
 const errors = [];
 const results = [];
 
-async function open({ state, width = 390, height = 844, scheme = 'light', hash = '' } = {}) {
-  const ctx = await browser.newContext({ viewport: { width, height }, colorScheme: scheme, serviceWorkers: 'block', acceptDownloads: true });
+async function open({ state, width = 390, height = 844, scheme = 'light', hash = '', init, permissions = [] } = {}) {
+  const ctx = await browser.newContext({ viewport: { width, height }, colorScheme: scheme, serviceWorkers: 'block', acceptDownloads: true, permissions });
+  if (init) await ctx.addInitScript(init);
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   if (state) {
     await ctx.addInitScript((json) => {
@@ -354,6 +355,30 @@ async function run() {
     assert.equal(await text(page, '#snackText'), '読み込めませんでした。SpeedTaskのバックアップを選んでください');
     assert.equal(await text(page, '#importBtn'), 'バックアップから戻す');
     assert.equal((await stored(page)).habits.length, 4);
+  });
+
+  await test('share: sends an image and text through the share sheet', async () => {
+    const init = () => {
+      navigator.canShare = (d) => !!(d && d.files);
+      navigator.share = async (d) => { window.__shared = { text: d.text, files: (d.files || []).map((f) => ({ name: f.name, type: f.type, size: f.size })) }; };
+    };
+    const page = await open({ state: makeState({ days: { [dayKey(-1)]: pastDay(4, [0]) } }), init });
+    await press(page, 'ArrowRight', 'ArrowRight', 'ArrowLeft', 'ArrowRight');
+    await page.waitForTimeout(800);
+    await page.click('#shareBtn'); await page.waitForTimeout(200);
+    const shared = await page.evaluate(() => window.__shared);
+    assert.equal(shared.text, '今日の習慣、4つ中3つできた（75%）。🔥2日連続 #SpeedTask');
+    assert.equal(shared.files.length, 1);
+    assert.equal(shared.files[0].type, 'image/png');
+    assert.ok(shared.files[0].size > 10000, `image too small: ${shared.files[0].size}`);
+  });
+
+  await test('share: copies the result where there is no share sheet', async () => {
+    const page = await open({ state: makeState(), permissions: ['clipboard-read', 'clipboard-write'] });
+    await press(page, 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight');
+    await page.click('#shareBtn'); await page.waitForTimeout(200);
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), '今日の習慣、4つ全部できた（100%）。🔥1日連続 #SpeedTask');
+    assert.equal(await text(page, '#snackText'), '結果をコピーしました');
   });
 
   await test('no horizontal overflow on a small phone, light and dark', async () => {
