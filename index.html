@@ -116,8 +116,9 @@ button:disabled { cursor: default; }
 
 .finish, .empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .done-mark { width: 64px; height: 58px; margin-bottom: 18px; }
-.done-time { font-size: 64px; font-weight: 900; line-height: 1; letter-spacing: -.03em; color: var(--accent-ink); font-variant-numeric: tabular-nums; }
-.done-time small { font-size: 22px; letter-spacing: 0; margin-left: 3px; }
+.done-pct { font-size: 72px; font-weight: 900; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.done-pct small { font-size: 26px; letter-spacing: 0; margin-left: 2px; }
+.done-pct.perfect { color: var(--accent-ink); }
 .done-line { margin: 10px 0 0; font-size: 18px; font-weight: 800; }
 .week { display: flex; gap: 14px; margin-top: 30px; }
 .wd { display: flex; flex-direction: column; align-items: center; gap: 7px; font-size: 10px; font-weight: 800; color: var(--faint); }
@@ -224,7 +225,7 @@ button:disabled { cursor: default; }
 @media (max-height: 680px) {
   .clock { font-size: 34px; }
   .foot { height: 56px; }
-  .done-time { font-size: 52px; }
+  .done-pct { font-size: 56px; }
   .week { margin-top: 20px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -247,7 +248,7 @@ button:disabled { cursor: default; }
       <div class="stack" id="stack"></div>
       <div class="finish" id="done" hidden>
         <svg class="done-mark" viewBox="0 0 120 110" aria-hidden="true"><use href="#i-logo"/></svg>
-        <div class="done-time" id="doneTime"></div>
+        <div class="done-pct" id="donePct"></div>
         <p class="done-line" id="doneLine"></p>
         <div class="week" id="week" aria-label="直近7日"></div>
         <p class="done-sub" id="doneSub"></p>
@@ -597,10 +598,13 @@ button:disabled { cursor: default; }
     done.hidden = !day.finished;
     if (day.finished) {
       const secs = day.seconds, nDone = day.done.length, nMiss = day.skipped.length;
-      $('#doneTime').hidden = secs == null;
-      if (secs != null) $('#doneTime').innerHTML = fmtSecs(secs);
-      $('#doneLine').textContent = secs != null ? 'で、今日が終わった。' : '今日が終わった。';
-      $('#doneSub').innerHTML = `${FLAME}${overallStreak()}日連続<span class="sep">・</span>${nMiss ? `${total}つ中${nDone}つ` : '全部できた'}`;
+      const pct = Math.round((nDone / total) * 100);
+      $('#donePct').innerHTML = `${pct}<small>%</small>`;
+      $('#donePct').classList.toggle('perfect', !nMiss);
+      $('#doneLine').textContent = nMiss ? `${total}つ中${nDone}つ、できた。` : '全部できた。';
+      // The time is only a side note, and only when the day was swiped in one sitting.
+      const time = secs != null && secs < 3600 ? `<span class="sep">・</span>${plainSecs(secs)}` : '';
+      $('#doneSub').innerHTML = `${FLAME}${overallStreak()}日連続${time}`;
       $('#retryBtn').hidden = !nMiss;
       $('#retryBtn').textContent = `できなかった${nMiss}つをやり直す`;
       let week = '';
