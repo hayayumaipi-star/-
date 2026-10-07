@@ -35,7 +35,5 @@
         </provider>
     </application>
 
-    <!-- Permissions -->
-
-    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- No permissions: the app runs from its bundled files and keeps records on the device. -->
 </manifest>

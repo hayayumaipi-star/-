@@ -8,8 +8,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -25,16 +25,18 @@ jobs:
       VERSION_CODE: ${{ github.run_number }}
       HAS_KEY: ${{ secrets.ANDROID_KEYSTORE_PASSWORD != '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
-      - uses: android-actions/setup-android@v3
+      # The runner image ships the Android SDK; Gradle fetches anything missing once the licenses are accepted.
+      - name: Accept Android SDK licenses
+        run: yes | "$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | tail -1)" --licenses > /dev/null || true
       - run: npm ci
       - run: npm run sync:android
 
@@ -57,12 +59,12 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: ./gradlew --no-daemon bundleRelease
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: swipe-habit-test-apk-${{ github.run_number }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: env.HAS_KEY == 'true'
         with:
           name: swipe-habit-play-aab-${{ github.run_number }}
