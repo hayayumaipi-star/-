@@ -1,4 +1,4 @@
-# SpeedTask
+# スワイプ習慣
 
 **習慣は、スワイプで終わらせる。**
 
@@ -54,6 +54,21 @@ npm start            # http://localhost:8080
 
 GitHub Pages などにそのまま置けます。スマホでは「ホーム画面に追加」でアプリとして使え、オフラインでも動きます。
 記録はブラウザの `localStorage` にだけ保存されます。機種変更の前は「バックアップを書き出す」で保存してください。
+
+## Android アプリ（Google Play）
+
+Capacitor で Android アプリにしています（パッケージ名 `jp.swipeshukan.app`）。
+
+```sh
+npm run sync:android   # Web アプリを android/ にコピー
+npm run icons          # アイコン・スプラッシュ・ストア画像を作り直す
+npm run screenshots    # ストア用スクリーンショットを作り直す
+```
+
+ビルドは GitHub Actions（`.github/workflows/android.yml`）で行い、テスト用 APK と、Play に提出する署名済み AAB を作ります。
+公開までの手順は [docs/RELEASE.md](docs/RELEASE.md)、掲載文と Play Console の質問への答えは [store/listing-ja.md](store/listing-ja.md)、プライバシーポリシーは [docs/privacy.md](docs/privacy.md) にあります。
+
+フォント M PLUS Rounded 1c は `fonts/` に同梱しています（SIL Open Font License 1.1、`fonts/OFL.txt`）。
 
 ## テスト
 
