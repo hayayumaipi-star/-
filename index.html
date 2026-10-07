@@ -155,6 +155,39 @@ button:disabled { cursor: default; }
 .snack button { border: 0; border-radius: 999px; background: transparent; color: var(--on-ink-accent); font-weight: 900; padding: 6px 12px; }
 .snack.no-action { padding-right: 18px; }
 
+/* ---------- ホーム ---------- */
+.home { gap: 30px; }
+.home-top { display: flex; align-items: flex-end; justify-content: space-between; padding-top: 22px; }
+.home-date { margin: 0; font-size: 13px; font-weight: 800; color: var(--sub); }
+.home-title { margin: 0; font-size: 30px; font-weight: 900; line-height: 1.25; letter-spacing: -.01em; }
+.home-top .icon-btn { margin-right: -10px; margin-bottom: -4px; }
+.hero { border-radius: 28px; background: var(--surface); }
+.hero-start { position: relative; overflow: hidden; width: 100%; min-height: 188px; border: 0; border-radius: 28px; background: transparent; padding: 24px; text-align: left; display: flex; flex-direction: column; justify-content: space-between; transition: transform .15s; }
+.hero-start:active { transform: scale(.985); }
+.hero-kicker { margin: 0; font-size: 13px; font-weight: 800; color: var(--sub); }
+.hero-start .hero-kicker, .hero-start .hero-num { display: block; }
+.hero-num { font-size: 58px; font-weight: 900; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin-top: 4px; }
+.hero-num small { font-size: 18px; letter-spacing: 0; margin-left: 3px; }
+.hero-cta { display: inline-flex; align-items: center; gap: 2px; margin-top: 18px; font-size: 15px; font-weight: 900; color: var(--accent-ink); }
+.hero-cta svg { width: 18px; height: 18px; }
+.mini-stack { position: absolute; right: 30px; top: 50%; width: 90px; height: 110px; margin-top: -55px; }
+.mini-stack i { position: absolute; inset: 0; border-radius: 16px; background: var(--c); box-shadow: 0 12px 24px -16px rgba(0, 0, 0, .55); }
+.mini-stack i:nth-last-child(3) { transform: translate(-20px, 8px) rotate(-14deg); }
+.mini-stack i:nth-last-child(2) { transform: translate(-9px, 3px) rotate(-6deg); }
+.hero-done, .hero-rest { padding: 26px 24px 14px; text-align: center; display: flex; flex-direction: column; align-items: center; }
+.hero-rest { padding-bottom: 26px; gap: 6px; }
+.hero-pct { font-size: 64px; font-weight: 900; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.hero-pct small { font-size: 24px; letter-spacing: 0; margin-left: 2px; }
+.hero-pct.perfect { color: var(--accent-ink); }
+.hero-line { margin: 8px 0 0; font-size: 16px; font-weight: 800; }
+.hero-rest-title { margin: 0; font-size: 22px; font-weight: 900; }
+.hero-rest .pill-btn { margin-top: 10px; }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.sec-head .label { margin-bottom: 4px; }
+.sec-head span { display: flex; align-items: center; gap: 3px; font-size: 13px; font-weight: 800; color: var(--sub); font-variant-numeric: tabular-nums; }
+.week-wide { justify-content: space-between; gap: 0; margin-top: 12px; padding-inline: 2px; }
+.more { padding-inline: 0; margin-top: 12px; }
+
 /* ---------- 記録 / 習慣 ---------- */
 .page-top { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; height: 56px; margin-inline: calc(var(--gutter) * -1); padding-inline: 8px; background: var(--bg); flex-shrink: 0; }
 .back { justify-self: start; display: flex; align-items: center; border: 0; background: none; color: var(--sub); font-size: 14px; font-weight: 800; padding: 8px; }
@@ -284,11 +317,35 @@ button:disabled { cursor: default; }
     </div>
   </main>
 
-  <!-- 今日 -->
-  <main class="view" id="view-today" aria-label="今日">
+  <!-- ホーム -->
+  <main class="view page home" id="view-home" aria-label="ホーム" hidden>
+    <header class="home-top">
+      <div>
+        <p class="home-date" id="homeDate"></p>
+        <h1 class="home-title">今日</h1>
+      </div>
+      <button class="icon-btn" data-go="settings" aria-label="習慣と設定">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M5.5 18.5l1.8-1.8M16.7 7.3l1.8-1.8"/></svg>
+      </button>
+    </header>
+    <section class="hero" id="hero"></section>
+    <section id="todaySec">
+      <div class="sec-head"><p class="label">今日の習慣</p><span id="todayMeta"></span></div>
+      <ul class="rows" id="todayRows"></ul>
+      <p class="fine">タップで直せます。</p>
+    </section>
+    <section>
+      <div class="sec-head"><p class="label">この7日</p><span id="homeStreak"></span></div>
+      <div class="week week-wide" id="homeWeek" aria-label="この7日"></div>
+      <button class="text-link more" data-go="records">記録をすべて見る</button>
+    </section>
+  </main>
+
+  <!-- スワイプ -->
+  <main class="view" id="view-today" aria-label="今日のカード" hidden>
     <header class="topbar">
-      <button class="icon-btn" data-go="records" aria-label="記録を見る">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
+      <button class="icon-btn" data-go="home" aria-label="ホームにもどる">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-cross"/></svg>
       </button>
       <div class="count" id="count" aria-live="polite"></div>
       <div class="streak" aria-label="連続日数"><svg class="flame" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flame"/></svg><span id="streakNum">0</span></div>
@@ -326,9 +383,9 @@ button:disabled { cursor: default; }
   <!-- 記録 -->
   <main class="view page" id="view-records" aria-label="記録" hidden>
     <header class="page-top">
-      <button class="back" data-go="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg>今日</button>
+      <button class="back" data-go="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg>ホーム</button>
       <h1 class="page-title">記録</h1>
-      <button class="link" data-go="settings">編集</button>
+      <span></span>
     </header>
     <section class="stats">
       <div class="stat"><b id="statStreak"></b><span>連続</span></div>
@@ -360,7 +417,7 @@ button:disabled { cursor: default; }
   <!-- 習慣 -->
   <main class="view page" id="view-settings" aria-label="習慣" hidden>
     <header class="page-top">
-      <button class="back" data-go="records"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg>記録</button>
+      <button class="back" data-go="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg>ホーム</button>
       <h1 class="page-title">習慣</h1>
       <span></span>
     </header>
@@ -451,6 +508,7 @@ button:disabled { cursor: default; }
     const days = {};
     const t = todayKey();
     const all = habits.map((h) => h.id);
+    habits.forEach((h) => { h.since = addDays(t, -24); });
     // Sample history (sample:true, clearable in the app): the last 2 days recorded (streak 2),
     // a missed day before that, and a mix of perfect and partial days further back.
     for (let i = 24; i >= 1; i--) {
@@ -467,11 +525,6 @@ button:disabled { cursor: default; }
   // Bring a saved (or imported) state up to the current shape; null if it isn't one.
   function migrate(s) {
     if (!s || typeof s !== 'object' || !Array.isArray(s.habits) || !s.days || typeof s.days !== 'object') return null;
-    s.habits = s.habits.filter((h) => h && typeof h.id === 'string' && typeof h.name === 'string');
-    s.habits.forEach((h) => {
-      if (!COLORS[h.color]) h.color = 'blue';
-      if (h.days && (!Array.isArray(h.days) || !h.days.length)) delete h.days;
-    });
     Object.keys(s.days).forEach((k) => {
       const d = s.days[k];
       if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || !d || typeof d !== 'object') { delete s.days[k]; return; }
@@ -479,6 +532,20 @@ button:disabled { cursor: default; }
       if (!Array.isArray(d.skipped)) d.skipped = [];
       if (typeof d.total !== 'number') d.total = d.done.length + d.skipped.length;
       if (d.finished === undefined) d.finished = !!d.complete;
+    });
+    const firstKey = Object.keys(s.days).sort()[0] || todayKey();
+    const isKey = (k) => typeof k === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(k);
+    s.habits = s.habits.filter((h) => h && typeof h.id === 'string' && typeof h.name === 'string');
+    s.habits.forEach((h) => {
+      if (!COLORS[h.color]) h.color = 'blue';
+      if (!isKey(h.since)) h.since = firstKey;
+      if (h.archived !== undefined && !isKey(h.archived)) delete h.archived;
+      // Saves from before schedule history had one weekday list for all time.
+      if (Array.isArray(h.days) && h.days.length && h.days.length < 7) h.sched = [{ from: '0000-01-01', days: h.days.slice().sort() }];
+      delete h.days;
+      h.sched = (Array.isArray(h.sched) ? h.sched : [])
+        .filter((e) => e && isKey(e.from) && (e.days === null || (Array.isArray(e.days) && e.days.length)))
+        .sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
     });
     if (s.session && (typeof s.session !== 'object' || !Array.isArray(s.session.queue))) s.session = null;
     if (s.session) {
@@ -498,8 +565,28 @@ button:disabled { cursor: default; }
   const today = () => state.days[state.session.date];
   const habitById = (id) => state.habits.find((h) => h.id === id);
   const judged = (day, id) => day.done.includes(id) || day.skipped.includes(id);
-  // habit.days lists the weekdays (0 = Sunday) a habit is scheduled on; missing means every day.
-  const onDay = (h, k) => !h.days || h.days.includes(parseKey(k).getDay());
+  // Deleted habits stay in state (archived) so the past days they belong to read the same.
+  const activeHabits = () => state.habits.filter((h) => !h.archived);
+  // habit.since is the first day a habit counts and habit.archived the day it was deleted.
+  // habit.sched lists schedule changes in date order as {from, days}: days are weekdays
+  // (0 = Sunday), or null for every day. A change applies from the day it was made, so a
+  // past day always keeps the schedule it had.
+  function onDay(h, k) {
+    if (h.since && k < h.since) return false;
+    if (h.archived && k >= h.archived) return false;
+    let days = null;
+    for (const e of h.sched || []) { if (e.from <= k) days = e.days; else break; }
+    return !days || days.includes(parseKey(k).getDay());
+  }
+  const currentDays = (h) => (h.sched && h.sched.length ? h.sched[h.sched.length - 1].days : null);
+  function setDays(h, days) {
+    const t = todayKey(), sched = h.sched || (h.sched = []);
+    const last = sched[sched.length - 1];
+    if (last && last.from === t) last.days = days; else sched.push({ from: t, days });
+    const n = sched.length;
+    const before = n > 1 ? sched[n - 2].days : null;
+    if (JSON.stringify(before) === JSON.stringify(sched[n - 1].days)) sched.pop();
+  }
   const habitsOn = (k) => state.habits.filter((h) => onDay(h, k));
   // The habits that belong to a day: scheduled that weekday, or already recorded on it.
   const habitsFor = (k) => {
@@ -630,27 +717,17 @@ button:disabled { cursor: default; }
     hideSnack();
     render();
   }
-  // Correct a record from the calendar. Past days are closed records: anything not done counts as not done.
-  function setStatus(k, id, next) {
-    const isToday = k === todayKey();
-    const d = state.days[k] || (state.days[k] = newDay(k));
+  // Fix one of today's habits by hand. Past days are closed and can't be changed.
+  function setTodayStatus(id, next) {
+    const s = state.session, d = today();
     d.done = d.done.filter((x) => x !== id);
     d.skipped = d.skipped.filter((x) => x !== id);
     if (next === 'done') d.done.push(id);
     else if (next === 'miss') d.skipped.push(id);
-    if (isToday) {
-      const s = state.session;
-      s.queue = s.queue.filter((x) => x !== id);
-      if (next === 'pending') s.queue.unshift(id);
-      s.history = [];
-      refreshComplete();
-    } else {
-      const ids = habitsFor(k).map((h) => h.id);
-      d.total = ids.length;
-      d.skipped = ids.filter((x) => !d.done.includes(x));
-      d.finished = true;
-      d.complete = d.done.length === d.total;
-    }
+    s.queue = s.queue.filter((x) => x !== id);
+    if (next === 'pending') s.queue.unshift(id);
+    s.history = [];
+    refreshComplete();
     save();
   }
 
@@ -672,7 +749,7 @@ button:disabled { cursor: default; }
   }
 
   function renderToday() {
-    const s = state.session, day = today(), total = day.total, rest = state.habits.length > 0 && !total;
+    const s = state.session, day = today(), total = day.total, rest = activeHabits().length > 0 && !total;
     const visible = s.queue.slice(0, 3);
     for (const [id, el] of cardEls) if (!visible.includes(id)) { el.remove(); cardEls.delete(id); }
     visible.forEach((id, i) => {
@@ -692,9 +769,9 @@ button:disabled { cursor: default; }
     $('#srDone').hidden = $('#srMiss').hidden = !top;
     if (top) { $('#srDone').textContent = `${top.name}：やった`; $('#srMiss').textContent = `${top.name}：できなかった`; }
 
-    $('#count').innerHTML = !state.habits.length ? '' : day.finished || rest ? esc(dayLabel(s.date)) : `あと<b>${s.queue.length}</b>枚`;
+    $('#count').innerHTML = !activeHabits().length && !total ? '' : day.finished || rest ? esc(dayLabel(s.date)) : `あと<b>${s.queue.length}</b>枚`;
     $('#streakNum').textContent = overallStreak();
-    $('#empty').hidden = state.habits.length > 0;
+    $('#empty').hidden = activeHabits().length > 0 || total > 0;
     $('#rest').hidden = !rest;
     if (rest) $('#restNext').textContent = nextScheduled();
     $('#hint').hidden = state.onboarded || day.finished || !total;
@@ -714,18 +791,22 @@ button:disabled { cursor: default; }
       prepareShare();
       $('#retryBtn').hidden = !nMiss;
       $('#retryBtn').textContent = `できなかった${nMiss}つをやり直す`;
-      let week = '';
-      for (let i = 6; i >= 0; i--) {
-        const k = addDays(todayKey(), -i), r = state.days[k];
-        const cls = ['wd', r?.complete ? 'on' : recorded(r) ? 'part' : restDay(k) ? 'rest' : '', i === 0 ? 'today' : ''].join(' ');
-        week += `<span class="${cls}"><i></i>${DOW[parseKey(k).getDay()]}</span>`;
-      }
-      $('#week').innerHTML = week;
+      $('#week').innerHTML = weekHTML();
       if (appearing && booted && !reduceMotion.matches) { done.classList.remove('celebrate'); void done.offsetWidth; done.classList.add('celebrate'); }
     }
     tick();
   }
 
+  // The last 7 days as dots: full = everything done, ring = finished with misses, outline = rest day.
+  function weekHTML() {
+    let html = '';
+    for (let i = 6; i >= 0; i--) {
+      const k = addDays(todayKey(), -i), r = state.days[k];
+      const cls = ['wd', r?.complete ? 'on' : recorded(r) ? 'part' : restDay(k) ? 'rest' : '', i === 0 ? 'today' : ''].join(' ');
+      html += `<span class="${cls}"><i></i>${DOW[parseKey(k).getDay()]}</span>`;
+    }
+    return html;
+  }
   // "明日は3つ" / "次は金曜日、2つ" for the rest-day screen.
   function nextScheduled() {
     for (let i = 1; i <= 7; i++) {
@@ -841,6 +922,56 @@ button:disabled { cursor: default; }
     else if (e.key === 'z' || e.key === 'Backspace') { e.preventDefault(); undo(); }
   });
 
+  // ---------- ホーム ----------
+  const ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  function renderHome() {
+    const s = state.session, day = today(), t = s.date, total = day.total;
+    $('#homeDate').textContent = dayLabel(t);
+    const hero = $('#hero');
+    if (!activeHabits().length && !total) {
+      hero.innerHTML = '<div class="hero-rest"><p class="hero-rest-title">習慣を追加して、はじめよう。</p><button class="pill-btn" data-go="settings">習慣を追加</button></div>';
+    } else if (!total) {
+      hero.innerHTML = `<div class="hero-rest"><p class="hero-rest-title">今日はお休み。</p><p class="hero-kicker">${esc(nextScheduled())}</p></div>`;
+    } else if (day.finished) {
+      const nDone = day.done.length, nMiss = day.skipped.length, pct = Math.round((nDone / total) * 100);
+      hero.innerHTML = `<div class="hero-done">
+        <div class="hero-pct${nMiss ? '' : ' perfect'}">${pct}<small>%</small></div>
+        <p class="hero-line">${nMiss ? `${total}つ中${nDone}つ、できた。` : '全部できた。'}</p>
+        <div class="finish-actions"><button class="text-link" data-act="share">シェア</button>${nMiss ? `<button class="text-link" data-act="retry">できなかった${nMiss}つをやり直す</button>` : ''}</div>
+      </div>`;
+      prepareShare();
+    } else {
+      const started = day.done.length + day.skipped.length > 0;
+      const cards = s.queue.slice(0, 3).reverse().map((id) => `<i style="--c:${colorOf(habitById(id).color)}"></i>`).join('');
+      hero.innerHTML = `<button class="hero-start" data-go="today">
+        <span><span class="hero-kicker">${started ? 'あと' : '今日の習慣'}</span><span class="hero-num">${s.queue.length}<small>枚</small></span></span>
+        <span class="hero-cta">${started ? 'つづける' : 'スワイプではじめる'}${ARROW}</span>
+        <span class="mini-stack" aria-hidden="true">${cards}</span>
+      </button>`;
+    }
+    const list = habitsFor(t);
+    $('#todaySec').hidden = !list.length;
+    $('#todayMeta').textContent = `${day.done.length}/${total}`;
+    $('#todayRows').innerHTML = list.map((h) => rowHTML(h, statusOf(t, h.id), true)).join('');
+    $('#homeStreak').innerHTML = `${FLAME}${overallStreak()}日連続`;
+    $('#homeWeek').innerHTML = weekHTML();
+  }
+  $('#hero').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]');
+    if (!b) return;
+    if (b.dataset.act === 'share') shareResult();
+    else if (b.dataset.act === 'retry') { retryMisses(); go('today'); }
+  });
+  $('#todayRows').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-habit]');
+    if (!b) return;
+    const id = b.dataset.habit;
+    setTodayStatus(id, { pending: 'done', done: 'miss', miss: 'pending' }[statusOf(todayKey(), id)]);
+    renderHome();
+    const nb = $(`#todayRows [data-habit="${id}"]`);
+    if (nb) nb.focus({ preventScroll: true });
+  });
+
   // ---------- 記録 ----------
   let calMonth = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })();
   let calSel = todayKey();
@@ -877,12 +1008,12 @@ button:disabled { cursor: default; }
 
     renderDetail();
 
-    $('#habitStats').innerHTML = state.habits.map((h) => {
+    $('#habitStats').innerHTML = activeHabits().map((h) => {
       // Days the habit was due: recorded either way, or scheduled on a day that was never finished.
       const due = win.filter((k) => { const r = state.days[k]; return r?.done.includes(h.id) || r?.skipped.includes(h.id) || (!recorded(r) && onDay(h, k)); });
       const n = due.filter((k) => state.days[k]?.done.includes(h.id)).length;
       const pct = due.length ? Math.round((n / due.length) * 100) : 0;
-      return `<li style="--c:${colorOf(h.color)}"><i class="dot"></i><span class="name">${esc(h.name)}</span><span class="st">${FLAME}${habitStreak(h.id)}</span><span class="pct">${pct}%</span></li>`;
+      return `<li style="--c:${colorOf(h.color)}"><i class="dot"></i><span class="name">${esc(h.name)}</span><span class="st">${FLAME}${habitStreak(h.id)}</span><span class="pct">${due.length ? `${pct}%` : '—'}</span></li>`;
     }).join('') || '<li class="fine">習慣がありません</li>';
     $('#sampleNote').hidden = !state.sample;
   }
@@ -902,15 +1033,18 @@ button:disabled { cursor: default; }
     let meta = '記録なし';
     const list = habitsFor(k);
     if (recorded(r) || r?.done.length || r?.skipped.length) meta = `${r.done.length}/${r.total || list.length}${r.seconds != null ? `・${plainSecs(r.seconds)}` : ''}`;
-    else if (!list.length && state.habits.length) meta = 'お休み';
+    else if (!list.length && activeHabits().length) meta = 'お休み';
     $('#detailMeta').textContent = meta;
-    $('#detailRows').innerHTML = list.map((h) => {
-      const st = statusOf(k, h.id);
-      return `<li><button class="row is-${st}" data-habit="${h.id}" style="--c:${colorOf(h.color)}" aria-label="${esc(h.name)}：${STATUS_TEXT[st] || '記録なし'}。タップで変更">
-        <span class="mark ${st}">${st === 'done' ? CHECK : st === 'miss' ? CROSS : ''}</span>
-        <span class="name">${esc(h.name)}</span><span class="state">${STATUS_TEXT[st]}</span></button></li>`;
-    }).join('');
-    $('#detailHint').textContent = !list.length ? (state.habits.length ? 'この曜日の習慣はありません。' : '') : isToday ? 'タップで記録を直せます。' : 'つけ忘れも、タップで直せます。';
+    $('#detailRows').innerHTML = list.map((h) => rowHTML(h, statusOf(k, h.id), false)).join('');
+    $('#detailHint').textContent = !list.length ? (activeHabits().length ? 'この日にやる習慣はありませんでした。' : '') : isToday ? '今日の分はホームで直せます。' : '';
+  }
+  // One habit with its status. Rows are buttons only where they can be changed (today, on home).
+  function rowHTML(h, st, editable) {
+    const inner = `<span class="mark ${st}">${st === 'done' ? CHECK : st === 'miss' ? CROSS : ''}</span><span class="name">${esc(h.name)}</span><span class="state">${STATUS_TEXT[st]}</span>`;
+    const style = `--c:${colorOf(h.color)}`;
+    return editable
+      ? `<li><button class="row is-${st}" data-habit="${h.id}" style="${style}" aria-label="${esc(h.name)}：${STATUS_TEXT[st] || '記録なし'}。タップで変更">${inner}</button></li>`
+      : `<li><div class="row is-${st}" style="${style}">${inner}</div></li>`;
   }
 
   $('#cal').addEventListener('click', (e) => {
@@ -918,18 +1052,6 @@ button:disabled { cursor: default; }
     if (!b || b.disabled) return;
     calSel = b.dataset.day;
     renderRecords();
-  });
-  $('#detailRows').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-habit]');
-    if (!b) return;
-    const k = calSel, id = b.dataset.habit, st = statusOf(k, id);
-    const next = k === todayKey()
-      ? { pending: 'done', done: 'miss', miss: 'pending' }[st]
-      : st === 'done' ? 'miss' : 'done';
-    setStatus(k, id, next);
-    renderRecords();
-    const nb = $(`#detailRows [data-habit="${id}"]`);
-    if (nb) nb.focus({ preventScroll: true });
   });
   $('#prevMonth').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderRecords(); });
   $('#nextMonth').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderRecords(); });
@@ -945,18 +1067,19 @@ button:disabled { cursor: default; }
   }
   let openSched = null;
   function renderSettings() {
-    $('#editList').innerHTML = state.habits.map((h, i) => `
+    const list = activeHabits();
+    $('#editList').innerHTML = list.map((h, i) => `
       <li class="edit-row" data-id="${h.id}">
         <button class="swatch" data-act="color" style="--c:${colorOf(h.color)}" aria-label="色を変える（いまは${COLOR_NAMES[h.color] || ''}）"></button>
         <div class="edit-main">
           <input id="habit-${h.id}" value="${esc(h.name)}" maxlength="30" aria-label="習慣の名前" enterkeyhint="done">
-          <button class="sched" data-act="sched" aria-expanded="${openSched === h.id}" aria-label="曜日：${scheduleLabel(h.days)}。タップで変更">${scheduleLabel(h.days)}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button>
+          <button class="sched" data-act="sched" aria-expanded="${openSched === h.id}" aria-label="曜日：${scheduleLabel(currentDays(h))}。タップで変更">${scheduleLabel(currentDays(h))}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button>
         </div>
         <button class="mini" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="ひとつ上へ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
         <button class="mini" data-act="del" aria-label="削除"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-cross"/></svg></button>
-        ${openSched === h.id ? `<div class="days-pick" role="group" aria-label="${esc(h.name)}をやる曜日" style="--c:${colorOf(h.color)}">${WEEK_ORDER.map((d) => `<button data-act="day" data-day="${d}" aria-pressed="${!h.days || h.days.includes(d)}">${DOW[d]}</button>`).join('')}</div>` : ''}
+        ${openSched === h.id ? `<div class="days-pick" role="group" aria-label="${esc(h.name)}をやる曜日" style="--c:${colorOf(h.color)}">${WEEK_ORDER.map((d) => `<button data-act="day" data-day="${d}" aria-pressed="${!currentDays(h) || currentDays(h).includes(d)}">${DOW[d]}</button>`).join('')}</div>` : ''}
       </li>`).join('');
-    const full = state.habits.length >= MAX_HABITS;
+    const full = list.length >= MAX_HABITS;
     $('#addInput').disabled = full;
     $('#addInput').placeholder = full ? `習慣は${MAX_HABITS}個までです` : '習慣を追加';
     $('#addBtn').hidden = !$('#addInput').value.trim();
@@ -966,20 +1089,22 @@ button:disabled { cursor: default; }
     const b = e.target.closest('button[data-act]');
     if (!b) return;
     const id = b.closest('.edit-row').dataset.id;
-    const i = state.habits.findIndex((h) => h.id === id);
-    const h = state.habits[i];
+    const active = activeHabits();
+    const i = active.findIndex((h) => h.id === id);
+    const h = active[i];
     const act_ = b.dataset.act;
     if (act_ === 'color') h.color = COLOR_KEYS[(COLOR_KEYS.indexOf(h.color) + 1) % COLOR_KEYS.length];
     else if (act_ === 'sched') openSched = openSched === id ? null : id;
     else if (act_ === 'day') {
       const d = Number(b.dataset.day);
-      const days = h.days ? h.days.slice() : [0, 1, 2, 3, 4, 5, 6];
+      const days = currentDays(h) || [0, 1, 2, 3, 4, 5, 6];
       const next = days.includes(d) ? days.filter((x) => x !== d) : [...days, d];
       if (!next.length) { snack('少なくとも1日は選んでください'); return; }
-      if (next.length === 7) delete h.days; else h.days = next.sort();
+      setDays(h, next.length === 7 ? null : next.sort());
     }
     else if (act_ === 'up' && i > 0) {
-      [state.habits[i - 1], state.habits[i]] = [h, state.habits[i - 1]];
+      const a = state.habits.indexOf(active[i - 1]), c = state.habits.indexOf(h);
+      [state.habits[a], state.habits[c]] = [h, active[i - 1]];
       const order = state.habits.map((x) => x.id);
       state.session.queue.sort((a, c) => order.indexOf(a) - order.indexOf(c));
     } else if (act_ === 'del') {
@@ -989,7 +1114,10 @@ button:disabled { cursor: default; }
         setTimeout(() => { if (b.isConnected && b.classList.contains('armed')) renderSettings(); }, 3000);
         return;
       }
-      state.habits.splice(i, 1);
+      // A habit with records keeps them: it leaves today's cards and the lists, not the past.
+      const used = Object.values(state.days).some((r) => r.done.includes(id) || r.skipped.includes(id));
+      if (used || h.since < todayKey()) h.archived = todayKey();
+      else state.habits.splice(state.habits.indexOf(h), 1);
     }
     ensureSession();
     save();
@@ -1011,10 +1139,11 @@ button:disabled { cursor: default; }
   $('#addForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const v = $('#addInput').value.trim();
-    if (!v || state.habits.length >= MAX_HABITS) return;
-    const used = state.habits.map((h) => h.color);
-    const color = COLOR_KEYS.find((c) => !used.includes(c)) || COLOR_KEYS[state.habits.length % COLOR_KEYS.length];
-    state.habits.push({ id: uid(), name: v, color });
+    const active = activeHabits();
+    if (!v || active.length >= MAX_HABITS) return;
+    const used = active.map((h) => h.color);
+    const color = COLOR_KEYS.find((c) => !used.includes(c)) || COLOR_KEYS[active.length % COLOR_KEYS.length];
+    state.habits.push({ id: uid(), name: v, color, since: todayKey(), sched: [] });
     $('#addInput').value = '';
     ensureSession();
     save();
@@ -1031,7 +1160,8 @@ button:disabled { cursor: default; }
     }
     b.classList.remove('armed');
     b.textContent = 'すべての記録を消す';
-    state = { habits: state.habits, days: {}, session: null, sample: false, onboarded: true, welcomed: true };
+    const habits = activeHabits().map((h) => ({ ...h, since: todayKey(), sched: currentDays(h) ? [{ from: todayKey(), days: currentDays(h) }] : [] }));
+    state = { habits, days: {}, session: null, sample: false, onboarded: true, welcomed: true };
     cardEls.forEach((el) => el.remove());
     cardEls.clear();
     ensureSession();
@@ -1277,24 +1407,24 @@ button:disabled { cursor: default; }
   });
   $('#startBtn').addEventListener('click', () => {
     if (!picks.length) return;
-    state = { ...freshState(), habits: picks.map((name, i) => ({ id: uid(), name, color: COLOR_KEYS[i % COLOR_KEYS.length] })), welcomed: true };
+    state = { ...freshState(), habits: picks.map((name, i) => ({ id: uid(), name, color: COLOR_KEYS[i % COLOR_KEYS.length], since: todayKey(), sched: [] })), welcomed: true };
     ensureSession();
     save();
-    go('today');
+    go('home');
   });
   $('#demoBtn').addEventListener('click', () => {
     state = seed();
     ensureSession();
     save();
-    go('today');
+    go('home');
   });
 
   // ---------- navigation ----------
-  const VIEWS = ['welcome', 'today', 'records', 'settings'];
+  const VIEWS = ['welcome', 'home', 'today', 'records', 'settings'];
   let current = null;
   function go(v) {
     if (!state.welcomed) v = 'welcome';
-    else if (!VIEWS.includes(v) || v === 'welcome') v = 'today';
+    else if (!VIEWS.includes(v) || v === 'welcome') v = 'home';
     const prev = current;
     current = v;
     VIEWS.forEach((n) => { $(`#view-${n}`).hidden = n !== v; });
@@ -1303,13 +1433,13 @@ button:disabled { cursor: default; }
       el.scrollTop = 0;
       if (prev === 'settings') resetImport();
       if (v !== 'today') hideSnack();
-      if (v === 'records' && prev === 'today') { calSel = todayKey(); const d = new Date(); calMonth = new Date(d.getFullYear(), d.getMonth(), 1); }
+      if (v === 'records' && prev !== 'settings') { calSel = todayKey(); const d = new Date(); calMonth = new Date(d.getFullYear(), d.getMonth(), 1); }
       if (!reduceMotion.matches) {
         const dir = VIEWS.indexOf(v) > VIEWS.indexOf(prev) ? 1 : -1;
         el.animate([{ opacity: 0, transform: `translateX(${dir * 20}px)` }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.8,.2,1)' });
       }
     }
-    const hash = v === 'today' || v === 'welcome' ? '' : `#${v}`;
+    const hash = v === 'home' || v === 'welcome' ? '' : `#${v}`;
     if (location.hash !== hash) history.replaceState(null, '', hash || location.pathname + location.search);
     render();
   }
@@ -1318,6 +1448,7 @@ button:disabled { cursor: default; }
 
   function render() {
     if (current === 'welcome') renderWelcome();
+    else if (current === 'home') renderHome();
     else if (current === 'today') renderToday();
     else if (current === 'records') renderRecords();
     else if (current === 'settings') renderSettings();
@@ -1337,7 +1468,7 @@ button:disabled { cursor: default; }
 
   ensureSession();
   save();
-  go(location.hash.slice(1) || 'today');
+  go(location.hash.slice(1) || 'home');
   booted = true;
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http') && document.querySelector('link[rel="manifest"]')) {
