@@ -443,6 +443,23 @@ async function run() {
     assert.equal(await text(page, '#snackText'), 'バックアップを書き出しました');
   });
 
+  await test('in the Android app, back returns to home and exits from there', async () => {
+    const init = () => {
+      window.Capacitor = { isNativePlatform: () => true, Plugins: { App: {
+        addListener: (event, fn) => { if (event === 'backButton') window.__back = fn; },
+        exitApp: () => { window.__exited = true; },
+      } } };
+    };
+    const page = await open({ state: makeState(), hash: '#records', init });
+    await page.evaluate(() => window.__back());
+    await page.waitForTimeout(300);
+    assert.ok(await page.isVisible('#view-home'));
+    assert.equal(await page.evaluate(() => !!window.__exited), false);
+    await page.evaluate(() => window.__back());
+    assert.equal(await page.evaluate(() => !!window.__exited), true);
+    assert.equal(await page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length), 0);
+  });
+
   await test('no horizontal overflow on a small phone, light and dark', async () => {
     for (const scheme of ['light', 'dark']) {
       for (const hash of ['', '#today', '#records', '#settings']) {
