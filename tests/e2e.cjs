@@ -49,7 +49,7 @@ const errors = [];
 const results = [];
 
 async function open({ state, width = 390, height = 844, scheme = 'light', hash = '' } = {}) {
-  const ctx = await browser.newContext({ viewport: { width, height }, colorScheme: scheme, serviceWorkers: 'block' });
+  const ctx = await browser.newContext({ viewport: { width, height }, colorScheme: scheme, serviceWorkers: 'block', acceptDownloads: true });
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   if (state) {
     await ctx.addInitScript((json) => {
@@ -323,6 +323,37 @@ async function run() {
     assert.deepEqual(await page.$$eval('#habitStats .pct', (els) => els.map((e) => e.textContent)), ['100%', '100%']);
     await page.click(`[data-day="${dayKey(-2)}"]`).catch(async () => { await page.click('#prevMonth'); await page.click(`[data-day="${dayKey(-2)}"]`); });
     assert.equal(await page.locator('#detailRows .row').count(), 1);
+  });
+
+  await test('backup: export, then restore it on a fresh device', async () => {
+    const days = { [dayKey(-1)]: pastDay(4, [0, 1]) };
+    const page = await open({ state: makeState({ days }), hash: '#settings' });
+    const [download] = await Promise.all([page.waitForEvent('download'), page.click('#exportBtn')]);
+    assert.equal(download.suggestedFilename(), `speedtask-${dayKey(0)}.json`);
+    const json = fs.readFileSync(await download.path(), 'utf8');
+    const data = JSON.parse(json);
+    assert.equal(data.app, 'SpeedTask');
+    assert.deepEqual(data.state.habits.map((h) => h.name), ['A', 'B', 'C', 'D']);
+
+    const fresh = await open({ state: makeState({ names: ['X'] }), hash: '#settings' });
+    await fresh.setInputFiles('#importFile', { name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(json) });
+    await fresh.waitForTimeout(200);
+    assert.equal(await text(fresh, '#importBtn'), '4つの習慣・1日分で置き換える（もう一度タップ）');
+    assert.equal((await stored(fresh)).habits.length, 1, 'replaced before confirming');
+    await fresh.click('#importBtn');
+    const s = await stored(fresh);
+    assert.deepEqual(s.habits.map((h) => h.name), ['A', 'B', 'C', 'D']);
+    assert.deepEqual(s.days[dayKey(-1)].done, ['h1', 'h2']);
+    assert.equal(await text(fresh, '#snackText'), 'バックアップから戻しました');
+  });
+
+  await test('backup: a file that is not a backup is rejected', async () => {
+    const page = await open({ state: makeState(), hash: '#settings' });
+    await page.setInputFiles('#importFile', { name: 'x.json', mimeType: 'application/json', buffer: Buffer.from('{"hello": 1}') });
+    await page.waitForTimeout(200);
+    assert.equal(await text(page, '#snackText'), '読み込めませんでした。SpeedTaskのバックアップを選んでください');
+    assert.equal(await text(page, '#importBtn'), 'バックアップから戻す');
+    assert.equal((await stored(page)).habits.length, 4);
   });
 
   await test('no horizontal overflow on a small phone, light and dark', async () => {

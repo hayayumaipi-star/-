@@ -231,6 +231,7 @@ button:disabled { cursor: default; }
 .add-row button { border: 0; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: 13px; font-weight: 800; padding: 6px 14px; }
 .danger-link, .plain-link { display: block; border: 0; background: none; padding: 10px 0; font-size: 14px; font-weight: 800; text-align: left; }
 .danger-link { color: var(--danger); }
+.plain-link.armed { color: var(--danger); }
 
 .welcome { gap: 32px; padding-top: 44px; padding-bottom: 0; }
 .welcome-head { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
@@ -369,6 +370,9 @@ button:disabled { cursor: default; }
     </section>
     <section>
       <p class="label">データ</p>
+      <button class="plain-link" id="exportBtn">バックアップを書き出す</button>
+      <button class="plain-link" id="importBtn">バックアップから戻す</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
       <button class="plain-link" id="clearSampleBtn" data-clear-sample hidden>サンプルの記録を消す</button>
       <button class="danger-link" id="wipeBtn">すべての記録を消す</button>
       <p class="fine">記録はこの端末のブラウザにだけ保存されます。</p>
@@ -455,23 +459,33 @@ button:disabled { cursor: default; }
     return { habits, days, session: null, sample: true, onboarded: false, welcomed: true };
   }
   const freshState = () => ({ habits: [], days: {}, session: null, sample: false, onboarded: false, welcomed: false });
+  // Bring a saved (or imported) state up to the current shape; null if it isn't one.
+  function migrate(s) {
+    if (!s || typeof s !== 'object' || !Array.isArray(s.habits) || !s.days || typeof s.days !== 'object') return null;
+    s.habits = s.habits.filter((h) => h && typeof h.id === 'string' && typeof h.name === 'string');
+    s.habits.forEach((h) => {
+      if (!COLORS[h.color]) h.color = 'blue';
+      if (h.days && (!Array.isArray(h.days) || !h.days.length)) delete h.days;
+    });
+    Object.keys(s.days).forEach((k) => {
+      const d = s.days[k];
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || !d || typeof d !== 'object') { delete s.days[k]; return; }
+      if (!Array.isArray(d.done)) d.done = [];
+      if (!Array.isArray(d.skipped)) d.skipped = [];
+      if (typeof d.total !== 'number') d.total = d.done.length + d.skipped.length;
+      if (d.finished === undefined) d.finished = !!d.complete;
+    });
+    if (s.session && (typeof s.session !== 'object' || !Array.isArray(s.session.queue))) s.session = null;
+    if (s.session) {
+      s.session.history = (s.session.history || []).filter((a) => ['done', 'pass', 'retry'].includes(a.type));
+      if (typeof s.session.activeMs !== 'number') { s.session.activeMs = 0; s.session.lastAt = null; }
+    }
+    if (s.onboarded === undefined) s.onboarded = true;
+    if (s.welcomed === undefined) s.welcomed = true;
+    return s;
+  }
   function load() {
-    try {
-      const s = JSON.parse(localStorage.getItem(STORE_KEY));
-      if (!s || !Array.isArray(s.habits) || !s.days) return null;
-      Object.values(s.days).forEach((d) => {
-        if (!Array.isArray(d.skipped)) d.skipped = [];
-        if (d.finished === undefined) d.finished = !!d.complete;
-      });
-      s.habits.forEach((h) => { if (!COLORS[h.color]) h.color = 'blue'; });
-      if (s.session) {
-        s.session.history = (s.session.history || []).filter((a) => ['done', 'pass', 'retry'].includes(a.type));
-        if (typeof s.session.activeMs !== 'number') { s.session.activeMs = 0; s.session.lastAt = null; }
-      }
-      if (s.onboarded === undefined) s.onboarded = true;
-      if (s.welcomed === undefined) s.welcomed = true;
-      return s;
-    } catch (e) { return null; }
+    try { return migrate(JSON.parse(localStorage.getItem(STORE_KEY))); } catch (e) { return null; }
   }
   function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable */ } }
 
@@ -1018,6 +1032,69 @@ button:disabled { cursor: default; }
     render();
     snack('すべての記録を消しました');
   });
+  // ---------- backup ----------
+  async function exportBackup() {
+    const name = `speedtask-${todayKey()}.json`;
+    const json = JSON.stringify({ app: 'SpeedTask', version: 1, exportedAt: new Date().toISOString(), state }, null, 2);
+    const file = new File([json], name, { type: 'application/json' });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'SpeedTask バックアップ' });
+        snack('バックアップを書き出しました');
+        return;
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+    }
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    snack(`${name} を保存しました`);
+  }
+  let pendingImport = null, importTimer = 0;
+  function resetImport() {
+    pendingImport = null;
+    clearTimeout(importTimer);
+    $('#importBtn').classList.remove('armed');
+    $('#importBtn').textContent = 'バックアップから戻す';
+  }
+  $('#exportBtn').addEventListener('click', exportBackup);
+  $('#importBtn').addEventListener('click', () => {
+    if (!pendingImport) { $('#importFile').click(); return; }
+    state = pendingImport;
+    resetImport();
+    cardEls.forEach((el) => el.remove());
+    cardEls.clear();
+    ensureSession();
+    save();
+    render();
+    snack('バックアップから戻しました');
+  });
+  $('#importFile').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    let next = null;
+    try {
+      const data = JSON.parse(await f.text());
+      next = migrate(data && data.app === 'SpeedTask' ? data.state : data);
+    } catch (err) { next = null; }
+    if (!next) { snack('読み込めませんでした。SpeedTaskのバックアップを選んでください'); return; }
+    next.welcomed = true;
+    pendingImport = next;
+    const days = Object.values(next.days).filter((d) => d.done.length || d.finished).length;
+    const b = $('#importBtn');
+    b.classList.add('armed');
+    b.textContent = `${next.habits.length}つの習慣・${days}日分で置き換える（もう一度タップ）`;
+    clearTimeout(importTimer);
+    importTimer = setTimeout(resetImport, 8000);
+  });
+
   document.addEventListener('click', (e) => {
     if (!e.target.closest('[data-clear-sample]')) return;
     Object.keys(state.days).forEach((k) => { if (state.days[k].sample) delete state.days[k]; });
@@ -1090,6 +1167,7 @@ button:disabled { cursor: default; }
     const el = $(`#view-${v}`);
     if (prev && prev !== v) {
       el.scrollTop = 0;
+      if (prev === 'settings') resetImport();
       if (v !== 'today') hideSnack();
       if (v === 'records' && prev === 'today') { calSel = todayKey(); const d = new Date(); calMonth = new Date(d.getFullYear(), d.getMonth(), 1); }
       if (!reduceMotion.matches) {
